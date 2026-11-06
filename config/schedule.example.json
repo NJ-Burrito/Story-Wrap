@@ -1,0 +1,52 @@
+{
+  "note": "One source for the times: register-tasks.ps1 reads this file, ig_board.py shows it on the Schedule tab, and a test keeps them in step. Local time of this PC (Amman).",
+  "tasks": {
+    "StoryWrap-Autopilot": {
+      "kind": "repeat",
+      "from": "00:00",
+      "every_min": 15,
+      "limit_h": 5,
+      "registered_by": "tools/register-autopilot.ps1",
+      "what": "the owner 2026-10-27, widened 2026-10-30 (R-505): ticks every 15 min around the clock and decides from the files what is due, so nobody has to ask it to start. The 14:00 rule is in the code, not in the trigger: the finished post is harvested at 14:00 Amman the day after it (comments, replies, DMs, metrics, vote, learning review), the next brief is written and the next episode is built at once (votes, script through critic and retro). An episode that is built but not complete is finished (critic, heal, retro). A tick with nothing due logs one idle line and ends. A failed episode is retried when tools/ or its inputs changed, else every 2 h up to 3 extra times a day, never parked until tomorrow; a stop nobody can heal writes work/daily/<ep>/FIX-REQUEST.md and a red alert on the board. Opens VS Code if it is closed, then runs headless. Replaces StoryWrap-Daily. It never posts.",
+      "rule": "Idempotent behind work/daily/autopilot.lock. Daily LLM budget SW_LLM_DAILY_TOKENS=5000000, 4 h machine cap per episode, free services only. The loop gate still holds: episode N+1 starts only after N was posted and harvested. An episode that completes after 19:00 is posted at the NEXT 19:00 slot by StoryWrap-Post, never early. A state that needs judgement starts one bounded headless Lead repair per stop code (tools/templates/autopilot-lead.md).",
+      "cmd": "uv run tools/daily.py autopilot"
+    },
+    "StoryWrap-Post": {
+      "kind": "repeat",
+      "from": "19:00",
+      "every_min": 5,
+      "for_h": 1.5,
+      "limit_h": 1,
+      "what": "Post the finished episode at the fixed 19:00 slot on every platform (the owner 2026-10-27): Instagram, then the Facebook Reel at once, then YouTube. Ticks every 5 min from 19:00 to 20:25 only to retry a failed attempt; an episode that was not ready at 19:00 waits for the next 19:00 and never posts off-slot. After the Reels: the YouTube upload (once Instagram is on record) and one Instagram and one Facebook Page story.",
+      "rule": "Posts only when every gate passed, the critic is 9 or more and a token exists. Each platform is its own attempt: an Instagram post stays when Facebook fails (PARTIAL, retried), and a Facebook post is never repeated. No token: NO-TOKEN, clean exit.",
+      "cmd": "uv run tools/post_extra.py tick"
+    },
+    "StoryWrap-Harvest": {
+      "kind": "repeat",
+      "from": "00:35",
+      "every_min": 60,
+      "limit_h": 1,
+      "what": "Safety net for the autopilot's 14:00 harvest: 14:00 Amman the day after the LATER post (the 14:35 run at the latest), read Instagram, count the vote (Instagram only), read Facebook for ideas, write the next brief, draft replies, send approved replies, learning review; 24 h after the post: a late pass files new comments as ideas only.",
+      "rule": "Acts only on an Instagram-posted episode whose harvest time (14:00 the next day) has come. A Facebook read that fails is PARTIAL (exit 3) and never changes the Instagram decision. No token: NO-TOKEN, clean exit.",
+      "cmd": "uv run tools/ig_board.py harvest-due --go"
+    },
+    "StoryWrap-Board": {
+      "kind": "repeat",
+      "from": "00:00",
+      "every_min": 15,
+      "limit_h": 1,
+      "what": "Refresh the board data (board/data/*.json and board.js). Asks Instagram for likes only when a token exists.",
+      "rule": "Reads files; the network only with a token and at most every 3 h per post.",
+      "cmd": "uv run tools/ig_board.py refresh --metrics"
+    },
+    "StoryWrap-Health": {
+      "kind": "repeat",
+      "from": "00:20",
+      "every_min": 180,
+      "limit_h": 1,
+      "what": "Check the five tasks, the token age, the render cap, the token budget and the failures; list alerts on the Health tab.",
+      "rule": "Never prints the token.",
+      "cmd": "uv run tools/ig_board.py health"
+    }
+  }
+}

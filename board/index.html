@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story-Wrap Board</title>
+<style>
+/* Thmanyah only (CLAUDE.md). Served: /fonts/..., opened from disk: ../assets/fonts/... */
+@font-face { font-family: 'Thmanyah Sans'; font-weight: 400; src: url(/fonts/thmanyahsans-Regular.woff2) format('woff2'), url(../assets/fonts/thmanyahsans-Regular.woff2) format('woff2'); }
+@font-face { font-family: 'Thmanyah Sans'; font-weight: 500; src: url(/fonts/thmanyahsans-Medium.woff2) format('woff2'), url(../assets/fonts/thmanyahsans-Medium.woff2) format('woff2'); }
+@font-face { font-family: 'Thmanyah Sans'; font-weight: 700; src: url(/fonts/thmanyahsans-Bold.woff2) format('woff2'), url(../assets/fonts/thmanyahsans-Bold.woff2) format('woff2'); }
+@font-face { font-family: 'Thmanyah Serif Display'; font-weight: 700; src: url(/fonts/thmanyahserifdisplay-Bold.woff2) format('woff2'), url(../assets/fonts/thmanyahserifdisplay-Bold.woff2) format('woff2'); }
+:root { --feed:#F4F2EE; --card:#FFFFFF; --line:#E0DFDC; --ink:#191919; --muted:#666; --soft:#8C8C8C; --burgundy:#7A1F3D; --blue:#0A66C2; --green:#057642; --red:#B24020; --amber:#B8661A; --chip:#F6E9EE; }
+* { box-sizing: border-box; }
+.backbtn { position:fixed; left:16px; bottom:16px; z-index:50; display:flex; align-items:center; gap:6px; padding:10px 16px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--burgundy); font:600 15px 'Thmanyah Sans', sans-serif; box-shadow:0 4px 14px rgba(0,0,0,.12); cursor:pointer; }
+.backbtn:hover { background:var(--chip); }
+.backbtn[hidden] { display:none; }
+html, body { margin:0; background:var(--feed); color:var(--ink); font-family:'Thmanyah Sans', sans-serif; font-size:15px; }
+button { font-family: inherit; }
+.shell { display:grid; grid-template-columns: 240px minmax(0, 760px); gap:24px; justify-content:center; padding:24px 16px 80px; }
+.side { position:sticky; top:24px; align-self:start; }
+.panel { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+.panel + .panel { margin-top:12px; }
+h1 { font-family:'Thmanyah Serif Display', serif; font-size:24px; margin:0 0 4px; color:var(--burgundy); }
+h2 { font-family:'Thmanyah Serif Display', serif; font-size:19px; margin:0 0 8px; }
+.sub, .small { color:var(--muted); font-size:13px; line-height:1.45; }
+.live { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12px; color:var(--muted); }
+.dot { width:9px; height:9px; border-radius:50%; background:var(--green); display:inline-block; flex:none; }
+.dot.red { background:var(--red); } .dot.amber { background:var(--amber); } .dot.grey { background:var(--soft); }
+.tabs { display:flex; flex-direction:column; gap:2px; }
+.tabs button { all:unset; cursor:pointer; display:flex; justify-content:space-between; padding:10px 12px; border-radius:8px; font-weight:500; }
+.tabs button:hover { background:#F3F2EF; } .tabs button.on { background:var(--chip); color:var(--burgundy); font-weight:700; }
+.tabs button:focus-visible, .btn:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.badge { font-size:12px; font-weight:700; border-radius:999px; padding:1px 8px; background:#EEE; }
+.badge.red { background:#FBEDEA; color:var(--red); } .badge.amber { background:#FFF4E5; color:#8A4B08; } .badge.green { background:#E8F3EC; color:var(--green); }
+.hook { background:var(--card); border:1px solid var(--line); border-inline-start:6px solid var(--burgundy); border-radius:10px; padding:16px 18px; margin-bottom:12px; }
+.hook.red { border-inline-start-color:var(--red); } .hook.amber { border-inline-start-color:var(--amber); } .hook.green { border-inline-start-color:var(--green); }
+.hook .big { font-family:'Thmanyah Serif Display', serif; font-size:22px; line-height:1.3; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-bottom:10px; }
+.kpi { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+.kpi .n { font-family:'Thmanyah Serif Display', serif; font-size:28px; line-height:1.1; font-variant-numeric:tabular-nums; }
+.kpi .l { color:var(--muted); font-size:12px; margin-top:2px; }
+table { width:100%; border-collapse:collapse; font-size:14px; }
+th { text-align:start; color:var(--muted); font-weight:500; font-size:12px; padding:6px 8px 6px 0; border-bottom:1px solid var(--line); }
+td { padding:8px 8px 8px 0; border-bottom:1px solid #F0EFEC; vertical-align:top; }
+td.num { font-variant-numeric:tabular-nums; text-align:end; }
+.pill { font-size:12px; font-weight:700; padding:2px 10px; border-radius:999px; background:#EEE; white-space:nowrap; }
+.pill.ok { background:#E8F3EC; color:var(--green); } .pill.failed, .pill.fail { background:#FBEDEA; color:var(--red); }
+.pill.running, .pill.wait, .pill.partial { background:#FFF4E5; color:#8A4B08; } .pill.skipped, .pill.pending, .pill.draft, .pill.idle, .pill.no-token, .pill.stale { background:#F3F2EF; color:var(--muted); }
+tr.stale td, .dim { opacity:.55; }
+.bar { height:10px; background:#EEE; border-radius:5px; overflow:hidden; } .bar > i { display:block; height:100%; background:var(--burgundy); }
+.bar.two { display:flex; } .bar.two > i:nth-child(2) { background:var(--blue); }
+.btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.btn { border:1px solid; border-radius:999px; padding:6px 16px; font-weight:700; font-size:14px; cursor:pointer; background:#fff; min-height:34px; }
+.btn.allow { background:var(--green); border-color:var(--green); color:#fff; } .btn.reject { color:var(--red); border-color:var(--red); }
+.btn:disabled { opacity:.45; cursor:default; }
+textarea { width:100%; min-height:64px; border:1px solid #8C8C8C; border-radius:6px; padding:8px; font:inherit; line-height:1.5; }
+.ar { unicode-bidi:plaintext; text-align:start; line-height:1.7; overflow-wrap:anywhere; white-space:pre-wrap; }
+.quote { background:#F9F9F7; border-radius:6px; padding:8px 10px; margin:6px 0; }
+.empty { text-align:center; color:var(--muted); padding:36px 0; }
+.msg { font-size:13px; margin-top:6px; } .msg.err { color:var(--red); } .msg.ok { color:var(--green); }
+.redbanner { background:#FBEDEA; border:2px solid var(--red); border-radius:10px; padding:12px 16px; margin-bottom:12px; }
+.redbanner b { color:var(--red); } .redbanner .alert + .alert { margin-top:8px; padding-top:8px; border-top:1px solid #F0C9BF; }
+.stages { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; } .stages .st { display:flex; flex-direction:column; gap:3px; min-width:84px; }
+.stages .st .small { font-size:11px; }
+.pill.waiting { background:#F3F2EF; color:var(--muted); } .pill.interrupted { background:#FBEDEA; color:var(--red); }
+a { color:var(--blue); } code { background:#F0EFEC; padding:1px 5px; border-radius:4px; font-size:13px; }
+.subtabs { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
+.subtabs button { all:unset; cursor:pointer; padding:10px 18px; border-radius:999px; background:var(--card); border:1px solid var(--line); font-weight:700; font-size:16px; }
+.subtabs button.on { background:var(--burgundy); border-color:var(--burgundy); color:#fff; } .subtabs button:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.subtabs .badge { margin-inline-start:6px; }
+.golink { display:inline-block; background:var(--burgundy); color:#fff; text-decoration:none; font-weight:700; border-radius:999px; padding:8px 18px; margin:4px 0; }
+.golink.alt { background:#fff; color:var(--burgundy); border:1px solid var(--burgundy); }
+.kpi.na .n { color:var(--soft); } .kpi .why { color:var(--soft); font-size:11px; line-height:1.35; margin-top:4px; }
+.kpi .note { color:var(--muted); font-size:11px; margin-top:2px; }
+.win { display:inline-block; font-weight:700; border-radius:999px; padding:4px 14px; background:#F3F2EF; } .win.open { background:#E8F3EC; color:var(--green); } .win.soon { background:#FFF4E5; color:#8A4B08; }
+.up { color:var(--green); font-weight:700; } .down { color:var(--red); font-weight:700; } .flat { color:var(--soft); }
+.asof { color:var(--soft); margin-top:2px; } .pill.stalebadge { background:#FDECEA; color:#8A1F11; }
+.spark { vertical-align:middle; } .spark polyline { fill:none; stroke:var(--burgundy); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; } .spark circle { fill:var(--burgundy); }
+.cm { border-top:1px solid #F0EFEC; padding:8px 0; } .cm .rep { margin-inline-start:22px; border-inline-start:3px solid var(--line); padding-inline-start:10px; }
+.cm .mine { border-inline-start-color:var(--burgundy); background:#FBF5F7; border-radius:4px; }
+details.sec { margin-top:8px; } details.sec > summary { cursor:pointer; font-weight:700; padding:6px 0; }
+.row2 { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.pfstrip { position:sticky; top:0; z-index:5; display:flex; gap:8px; flex-wrap:wrap; padding:10px 0; margin:-4px 0 12px; background:var(--feed); }
+.pfstrip button { all:unset; cursor:pointer; padding:10px 18px; border-radius:999px; background:var(--card); border:2px solid var(--pc); color:var(--pc); font-weight:700; font-size:16px; }
+.pfstrip button.on { background:var(--pc); color:#fff; } .pfstrip button:focus-visible { outline:2px solid var(--blue); outline-offset:2px; } .pfstrip .badge { margin-inline-start:6px; }
+.mgrid { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:12px; margin:10px 0; }
+.kpi.mc { padding:14px 16px; } .kpi.mc .n { font-size:40px; line-height:1.05; margin:4px 0; } .kpi.mc .l { font-size:14px; font-weight:700; color:var(--ink); }
+.dl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px; }
+.nabox { background:#F9F9F7; border-radius:8px; padding:10px 12px; margin-top:6px; } .nabox > b { display:block; margin-bottom:4px; }
+.card.post { border-top:6px solid var(--pc); padding:18px 20px; margin-bottom:18px; } .card.pfhead { border-top:6px solid var(--pc); }
+.phead { display:grid; grid-template-columns:150px minmax(0, 1fr); gap:16px; align-items:start; margin-bottom:8px; }
+.thumb { width:150px; aspect-ratio:9/16; object-fit:cover; border-radius:10px; background:#EEE; display:block; }
+.thumb.ph { display:flex; align-items:center; justify-content:center; text-align:center; color:var(--soft); font-size:13px; }
+.ptitle { font-family:'Thmanyah Serif Display', serif; font-size:19px; line-height:1.4; margin:2px 0; } .pcap { max-height:5.2em; overflow:hidden; }
+.pfgrid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:12px; }
+.pfcard { display:block; text-decoration:none; color:var(--ink); background:var(--card); border:1px solid var(--line); border-top:6px solid var(--pc); border-radius:10px; padding:14px 16px; }
+.pfcard .big { font-family:'Thmanyah Serif Display', serif; font-size:22px; color:var(--pc); } .pfcard:hover { background:#FBFAF8; }
+.notebox { background:#FFFBEF; border:1px solid #F0E3BC; border-radius:10px; padding:12px 14px; margin-top:12px; } .note-row { border-top:1px solid #F0E3BC; padding:6px 0; margin-top:6px; }
+.votebox { margin-top:8px; }
+@media (max-width:600px) { .phead { grid-template-columns:100px minmax(0, 1fr); } .thumb { width:100px; } .kpi.mc .n { font-size:32px; } }
+@media (max-width:900px) { .shell { grid-template-columns:minmax(0,1fr); } .side { position:static; } }
+@media (prefers-reduced-motion: no-preference) { .bar > i { transition: width .4s; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="panel">
+      <h1>Story-Wrap Board</h1>
+      <div class="sub">StoryPage <b>story_account</b>: what the daily pipeline did, what the audience said, what runs next.</div>
+      <div class="live"><span class="dot grey" id="dot"></span><span id="livetxt">Loading</span></div>
+    </div>
+    <div class="panel"><nav class="tabs" id="tabs" aria-label="Board tabs"></nav></div>
+  </aside>
+  <main id="main" aria-live="polite"><div class="empty">Loading board data</div></main>
+  <button class="backbtn" id="backbtn" type="button" aria-label="Back to the previous tab or section" hidden>⬅ Back</button>
+</div>
+<script>
+"use strict";
+const TOKEN = "__TOKEN__";
+const SERVED = !TOKEN.startsWith("__TOK");
+const ROUTES = { monitor: "all", engage: "all", posts: "instagram", comments: "instagram" };      // old links: Posts and Comments live in the Instagram tab, Engage in All
+const route = h => { const k = (h || "").replace(/^#/, "").split("/")[0] || "today"; return ROUTES[k] || k; };
+let D = null, tab = route(location.hash);
+const TABS = [["today", "Today"], ["all", "📊 All platforms"], ["instagram", "📸 Instagram"], ["facebook", "📘 Facebook"], ["youtube", "▶️ YouTube"], ["schedule", "Schedule"], ["health", "Health"], ["learning", "Learning"]];
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtT = s => s ? esc(String(s).replace("T", " ").slice(0, 16)) : "-";
+const mins = s => s == null ? "-" : (s >= 3600 ? (s / 3600).toFixed(2) + " h" : s >= 60 ? Math.round(s / 60) + " min" : Math.round(s) + " s");
+const pill = (t, cls) => `<span class="pill ${esc(String(cls || t).toLowerCase().replace(/[^a-z]+/g, "-"))}">${esc(t)}</span>`;
+const RESULTS = { "0": "ok", "267011": "not run yet", "267009": "running", "267010": "not scheduled", "267008": "ready" };     // Task Scheduler codes: 0x41303 is "never run", not an error
+const result = r => RESULTS[String(r)] || ("result " + (r || "-"));
+const ago = m => m == null ? "" : m < 90 ? Math.round(m) + " min ago" : m < 2880 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " days ago";
+const kpi = (n, l) => `<div class="kpi"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`;
+
+async function load() {
+  try {
+    if (SERVED) { const r = await fetch("data/board.json", { cache: "no-store" }); D = await r.json(); }
+    else { await new Promise((ok, no) => { const s = document.createElement("script"); s.src = "data/board.js?t=" + Date.now(); s.onload = ok; s.onerror = no; document.head.appendChild(s); }); D = window.__BOARD__; }
+  } catch (e) { if (!D) { document.getElementById("main").innerHTML = '<div class="empty">No data yet. Run <code>uv run tools/ig_board.py refresh</code></div>'; setLive("grey", "No data"); return; } }
+  try {   // the Learning tab's data (tools/learn.py write_board); optional, the board works without it
+    if (SERVED) { const r = await fetch("data/learning.json", { cache: "no-store" }); window.__LEARNING__ = await r.json(); }
+    else { await new Promise(ok => { const s = document.createElement("script"); s.src = "data/learning.js?t=" + Date.now(); s.onload = ok; s.onerror = ok; document.head.appendChild(s); }); }
+  } catch (e) { /* no learning data yet */ }
+  try {   // the Engage tab's data (tools/engage.py write_board); optional
+    if (SERVED) { const r = await fetch("data/engage.json", { cache: "no-store" }); window.__ENGAGE__ = await r.json(); }
+    else { await new Promise(ok => { const s = document.createElement("script"); s.src = "data/engage.js?t=" + Date.now(); s.onload = ok; s.onerror = ok; document.head.appendChild(s); }); }
+  } catch (e) { /* no engagement data yet */ }
+  try {   // the after-post data (tools/after_post.py write_board): peer comment drafts for the owner and the sticker-story cards; optional
+    if (SERVED) { const r = await fetch("data/after-post.json", { cache: "no-store" }); window.__AFTER__ = await r.json(); }
+    else { await new Promise(ok => { const s = document.createElement("script"); s.src = "data/after-post.js?t=" + Date.now(); s.onload = ok; s.onerror = ok; document.head.appendChild(s); }); }
+  } catch (e) { /* no after-post data yet */ }
+  try {   // the Monitor tab's data (tools/monitor_board.py, written by ig_board.py refresh); optional
+    if (SERVED) { const r = await fetch("data/monitor.json", { cache: "no-store" }); window.__MONITOR__ = await r.json(); }
+    else { await new Promise(ok => { const s = document.createElement("script"); s.src = "data/monitor.js?t=" + Date.now(); s.onload = ok; s.onerror = ok; document.head.appendChild(s); }); }
+  } catch (e) { /* no monitor data yet */ }
+  try {   // the live Build panel (tools/build_status.py, written by every autopilot tick and every stage boundary); optional
+    if (SERVED) { const r = await fetch("data/build.json", { cache: "no-store" }); window.__BUILD__ = await r.json(); }
+    else { await new Promise(ok => { const s = document.createElement("script"); s.src = "data/build.js?t=" + Date.now(); s.onload = ok; s.onerror = ok; document.head.appendChild(s); }); }
+  } catch (e) { /* no build data yet */ }
+  if (!typing()) render();      // a note being typed is never wiped by the refresh
+}
+function setLive(c, t) { document.getElementById("dot").className = "dot " + c; document.getElementById("livetxt").textContent = t; }
+
+const trail = [];      // tabs/sections visited this visit, for the Back button
+function go(t, back) { if (!back && t !== tab) trail.push(tab); tab = t; history.replaceState(null, "", "#" + tab); render(); window.scrollTo(0, 0); if (typeof syncBack === "function") syncBack(); }
+function render() {
+  if (!D) return;
+  const al = D.health.alerts.length, dr = D.replies.counts.drafts + D.replies.counts.approved, M = window.__MONITOR__;
+  setLive(al ? "red" : D.token ? "" : "amber", (al ? al + " alert(s)" : D.token ? "All clear" : "No Instagram token yet") + " · " + fmtT(D.generated_at).replace(/&nbsp;/g, " "));
+  document.getElementById("tabs").innerHTML = TABS.map(([k, n]) => {
+    const x = M && M.platforms[k], mb = x ? x.totals.drafts + x.totals.dms_unanswered + (k === "instagram" ? dr : 0) : k === "all" && M ? M.summary.notes_waiting : 0;
+    const b = k === "health" && al ? `<span class="badge red">${al}</span>` : mb ? `<span class="badge amber">${mb}</span>` : "";
+    return `<button data-tab="${k}" class="${tab === k ? "on" : ""}">${n}${b}</button>`;
+  }).join("");
+  document.getElementById("main").innerHTML = buildBanner() + (tab === "today" ? buildPanel() : "") + ({ today, all: monAll, instagram: monInstagram, facebook: monFacebook, youtube: monYoutube, schedule, health, learning }[tab] || today)();
+  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = e => { e.preventDefault(); go(b.dataset.tab); });
+  document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => decide(b.dataset.id, b.dataset.act));
+  document.querySelectorAll("[data-note]").forEach(b => b.onclick = () => saveNote(b));
+}
+
+// ---------------------------------------------------------------- the live Build panel (tools/build_status.py, R-505): a red banner on every tab, the full panel on Today
+const BK = { ok: "ok", running: "running", failed: "failed", waiting: "waiting" };
+function buildAge(B) { const t = B && B.generated_at ? Date.parse(B.generated_at) : NaN; return isNaN(t) ? null : (Date.now() - t) / 60000; }
+function buildBanner() {
+  const B = window.__BUILD__;
+  if (!B) return "";
+  const al = (B.alerts || []).slice(), age = buildAge(B);
+  if (age != null && age > 45 && !al.some(a => a.kind === "AUTOPILOT-SILENT")) al.push({ kind: "BOARD-STALE", text: "the Build data is " + Math.round(age) + " min old: nothing refreshed it (the autopilot task and the Board task both stopped?)" });
+  if (!al.length) return "";
+  return `<div class="redbanner" role="alert"><b>${al.length} problem${al.length > 1 ? "s" : ""} need${al.length > 1 ? "" : "s"} a look</b>` +
+    al.map(a => `<div class="alert"><b>${esc(a.kind)}</b> ${esc(a.text)}${a.since ? ` <span class="small">(since ${fmtT(a.since)})</span>` : ""}</div>`).join("") + `</div>`;
+}
+function buildPanel() {
+  const B = window.__BUILD__;
+  if (!B) return '<div class="card"><h2>Build</h2><div class="small">No build data yet: it is written by the next autopilot tick (<code>uv run tools/build_status.py</code> writes it now).</div></div>';
+  const A = B.autopilot || {}, m = B.machine || {}, tk = B.tokens || {};
+  const mp = m.cap_s ? Math.min(100, m.used_s / m.cap_s * 100) : 0, tp = tk.limit ? Math.min(100, tk.used / tk.limit * 100) : 0;
+  let h = `<div class="card"><h2>Build · ${esc(B.episode || "no episode yet")}${B.now ? ` <span class="small">${esc(B.now)}</span>` : ""}</h2>`;
+  h += `<div class="stages">` + (B.stages || []).map(s => `<div class="st"><span class="small">${esc(s.stage)}</span>${pill(s.state, BK[s.state])}<span class="small">${s.seconds != null ? mins(s.seconds) : ""}</span></div>`).join("") + `</div>`;
+  const bad = (B.stages || []).filter(s => s.state === "failed" && s.note);
+  h += bad.map(s => `<div class="small"><b>${esc(s.stage)}</b> ${esc(s.note)}</div>`).join("");
+  h += `<div class="grid" style="margin-top:10px">` + kpi(mins(m.used_s) + " / " + mins(m.cap_s), "machine time (the 4 h cap)") + kpi((tk.used / 1e6).toFixed(2) + " M / " + (tk.limit / 1e6).toFixed(0) + " M", "tokens today") +
+    kpi(A.next_tick ? String(A.next_tick).slice(11, 16) : "-", "next autopilot tick" + (A.every_min ? " (every " + A.every_min + " min)" : "")) + kpi(A.running ? "running" : "idle", "autopilot now") + `</div>`;
+  h += `<div class="bar"><i style="width:${mp.toFixed(1)}%"></i></div><div class="small">machine ${mp.toFixed(0)}% of cap · tokens ${tp.toFixed(0)}% of today's budget</div>`;
+  if (B.doing) h += `<div class="small" style="margin-top:8px"><b>Working now:</b> ${esc(B.doing.what)}${B.doing.ep ? " · " + esc(B.doing.ep) : ""} <span class="small">(since ${fmtT(B.doing.since)})</span></div>`;
+  h += `<div class="small" style="margin-top:8px"><b>Heals and fixer:</b> ` + ((B.heals || []).length ? B.heals.map(x => `${x.active ? "&#9654; " : ""}${esc(x.kind || x.file)}: ${esc(x.rounds)} round(s)${x.exhausted ? ", spent" : ""}${x.what ? ", " + esc(x.what) : ""}, last ${fmtT(x.last)}`).join("<br>") : "none") + `</div>`;
+  h += `<div class="small"><b>Last autopilot line:</b> ${esc(A.last || "none yet")}${A.last_at ? ` <span class="small">(${fmtT(A.last_at)})</span>` : ""}</div>`;
+  h += `<div class="small">refreshed ${fmtT(B.generated_at)}</div></div>`;
+  return h;
+}
+
+function today() {
+  const t = D.today, loop = t.loop;
+  if (!t.episode) return '<div class="hook"><div class="big">Nothing has run yet</div><div class="small">The first Daily run will fill this page.</div></div>';
+  const g = t.gate, c = t.critic, used = t.machine_s / t.cap_s * 100;
+  const st = t.state, ready = st === "ready" || st === "adopted" || (g && g.verdict === "PASS" && c && c.score >= 9);
+  const hookCls = st === "stopped" ? "red" : st === "posted" ? "green" : ready ? "green" : "amber";
+  const hook = st === "stopped" ? `${t.episode} stopped` : st === "posted" ? `${t.episode} is posted` : ready ? `${t.episode} is ready to post` : `${t.episode} is in production`;
+  let h = `<div class="hook ${hookCls}"><div class="big">${esc(hook)}</div><div class="small">${loop ? esc(loop.why) : ""}</div></div>`;
+  h += `<div class="grid">${kpi(g ? g.verdict : "-", "gate verdict" + (g ? ` (${g.checks} checks)` : ""))}${kpi(c ? c.score + "/10" : "-", "critic score (9 posts)")}${kpi(mins(t.machine_s), "render time of " + mins(t.cap_s) + " cap")}${kpi(loop ? loop.code : "-", "loop gate for " + (t.next_episode || "-"))}</div>`;
+  h += `<div class="card"><h2>Render cap</h2><div class="bar"><i style="width:${Math.min(100, used).toFixed(1)}%"></i></div><div class="small">${t.adopted ? "adopted: the build cap does not apply to posting (" + esc(t.adopted.text) + ")" : used.toFixed(1) + "% of the 4 h used"}</div></div>`;
+  h += `<div class="card"><h2>Stages of ${esc(t.episode)}</h2><table><tr><th>Stage</th><th>Status</th><th class="num">Time</th><th>Note</th></tr>` +
+    t.stages.map(s => `<tr><td>${esc(s.stage)}</td><td>${pill(s.status)}</td><td class="num">${mins(s.seconds)}</td><td class="small">${esc(s.check ? s.check + ": " : "")}${esc(s.message)}</td></tr>`).join("") + `</table></div>`;
+  if (g && g.fails.length) h += `<div class="card"><h2>Gate failures</h2>${g.fails.map(f => `<div class="small">${esc(f)}</div>`).join("")}</div>`;
+  if (t.stopped) h += `<div class="card"><h2>Stopped</h2><pre class="small ar">${esc(t.stopped)}</pre></div>`;
+  const A = t.autopilot;
+  if (A && (A.last || (A.todo || []).length)) h += `<div class="card"><h2>Autopilot${(A.todo || []).length ? " · needs you (" + A.todo.length + ")" : ""}</h2>${(A.todo || []).map(x => `<div class="small">• ${esc(x.text)} <span class="small">(since ${esc(x.since)})</span></div>`).join("")}<pre class="small">${esc((A.log_tail || []).join("\n"))}</pre></div>`;
+  return h;
+}
+
+function comments() {
+  const R = D.replies, open = R.items.filter(r => r.status === "draft" || r.status === "approved");
+  let h = `<div class="hook ${open.length ? "amber" : "green"}"><div class="big">${open.length ? open.length + " reply draft(s) to look at" : "No replies waiting"}</div>
+    <div class="small">${R.config.auto_reply ? "Auto-reply is ON for " + esc(R.config.auto_kinds.join(", ")) + " (limit " + R.config.max_replies_per_day + " a day)" : "Auto-reply is off: nothing is sent until you approve it"} · sent today ${R.counts.posted_today} of ${R.config.max_replies_per_day}${SERVED ? "" : " · open the board with <code>python board/serve.py</code> to use the buttons"}</div></div>`;
+  D.tallies.slice().reverse().forEach(t => {
+    h += `<div class="card"><h2>${esc(t.episode)} · vote ${esc(t.status)}</h2><div class="small">${(t.choices || []).map(c => `<b>${esc(c.id)}</b> <span class="ar">${esc(c.text_ar)}</span>: ${t.counts[c.id] ?? 0}`).join(" · ")} · counted ${t.counted}, own excluded ${t.own_excluded ?? 0}</div>
+      ${t.ideas.length ? `<h2 style="margin-top:10px">Ideas for the next episode (${t.ideas.length})</h2>` + t.ideas.slice(0, 12).map(i => `<div class="quote ar">${esc(i.text)} <span class="small">@${esc(i.username)}</span></div>`).join("") : ""}</div>`;
+  });
+  if (open.length) h += open.map(r => `<div class="card"><div class="small">${esc(r.episode)} · @${esc(r.username)} · ${pill(r.kind, "draft")} ${pill(r.status)}</div>
+    <div class="quote ar">${esc(r.comment)}</div><textarea class="ar" id="t-${esc(r.id)}" aria-label="Reply text">${esc(r.text)}</textarea>
+    <div class="btns"><button class="btn allow" data-act="approve" data-id="${esc(r.id)}" ${SERVED ? "" : "disabled"}>Approve</button><button class="btn reject" data-act="reject" data-id="${esc(r.id)}" ${SERVED ? "" : "disabled"}>Reject</button></div><div class="msg" id="m-${esc(r.id)}"></div></div>`).join("");
+  const rest = D.comments.filter(c => !c.own).slice(-30).reverse();
+  h += `<div class="card"><h2>All comments (${D.comments.filter(c => !c.own).length})</h2>` + (rest.length ? `<table><tr><th>Who</th><th>Comment</th><th>Kind</th></tr>` + rest.map(c => `<tr><td>@${esc(c.username)}<div class="small">${esc(c.episode)}</div></td><td class="ar">${esc(c.text)}</td><td>${pill(c.kind + (c.choice ? " " + c.choice : ""), "draft")}</td></tr>`).join("") + "</table>" : '<div class="empty">No comments yet. They arrive 12 h after a post.</div>') + "</div>";
+  return h;
+}
+
+function schedule() {
+  const S = D.schedule, np = S.next_post, nh = S.next_harvest;
+  let h = `<div class="hook"><div class="big">${np.episode ? esc(np.episode) + " posts at " + fmtT(np.slot) : "Nothing is waiting to be posted"}</div><div class="small">${np.blocked ? esc(np.blocked) : np.episode ? "Gates passed, critic 9 or more: posts by itself" : "The Autopilot makes the next episode"}</div></div>`;
+  h += `<div class="grid">${kpi(nh.episode ? fmtT(nh.next_run) : "-", nh.episode ? "next harvest (" + nh.episode + ")" : "next harvest")}${kpi(fmtT((S.tasks.find(t => t.task === "StoryWrap-Autopilot") || {}).next), "next production run")}</div>`;
+  h += `<div class="card"><h2>Tasks</h2><table><tr><th>Task</th><th>Next</th><th>What and rule</th></tr>` + S.tasks.map(t => `<tr><td><b>${esc(t.task)}</b></td><td>${fmtT(t.next)}</td><td class="small">${esc(t.what)}<br>${esc(t.rule)}</td></tr>`).join("") + `</table></div>`;
+  return h;
+}
+
+function health() {
+  const H = D.health, tk = H.token;
+  let h = `<div class="hook ${H.alerts.length ? "red" : "green"}"><div class="big">${H.alerts.length ? H.alerts.length + " alert(s)" : "All clear"}</div>${H.alerts.map(a => `<div class="small">${esc(a)}</div>`).join("")}</div>`;
+  h += `<div class="grid">${kpi(tk.present ? "present" : "missing", "Instagram token" + (tk.days_left != null ? ` (${tk.days_left} days left)` : ""))}${kpi(H.facebook_token && H.facebook_token.present ? "present" : "missing", "Facebook Page token")}${kpi(mins(H.cap.used_s), "render time of " + mins(H.cap.cap_s))}${kpi(H.tokens_today.used.toLocaleString("en"), "agent tokens today of " + H.tokens_today.limit.toLocaleString("en"))}</div>`;
+  if ((H.info || []).length) h += `<div class="card"><h2>Good to know</h2>${H.info.map(i => `<div class="small">${esc(i)}</div>`).join("")}</div>`;
+  h += `<div class="card"><h2>Token</h2><div class="small">${esc(tk.note)}. The value is never shown, logged or stored in the board.</div></div>`;
+  h += `<div class="card"><h2>Tasks</h2><table><tr><th>Task</th><th>Last said</th><th>Task Scheduler${H.scheduler_at ? ` <span class="small">(asked ${esc(fmtT(H.scheduler_at))}, kept until the next Health run)</span>` : ""}</th></tr>` + Object.keys(D.schedule.tasks.reduce((o, t) => (o[t.task] = 1, o), {})).map(n => {
+    const s = H.task_status[n], q = (H.scheduler || {})[n];
+    return `<tr class="${s && s.stale ? "stale" : ""}"><td><b>${esc(n)}</b></td><td>${s ? pill(s.status) + (s.stale ? " " + pill("old", "stale") : "") + ` <span class="small">${fmtT(s.at)} (${ago(s.age_min)}) ${esc(s.detail)}</span>` : '<span class="small">-</span>'}</td><td class="small">${q ? (q.registered === false ? "not registered" : esc((q.last_run || "") + " · " + result(q.last_result))) : "not queried (run health)"}</td></tr>`;
+  }).join("") + `</table></div>`;
+  if (H.failures.length) h += `<div class="card"><h2>Recent stops</h2>${H.failures.map(f => `<div class="quote small ar">${esc(f.episode)} · ${fmtT(f.at)}<br>${esc(f.text)}</div>`).join("")}</div>`;
+  return h;
+}
+
+// ---------------------------------------------------------------- 📡 Monitor: a tab per platform (tools/monitor_board.py). Posts, comments, Engage, stories, DMs and notes of a platform live in its tab.
+const PF = { instagram: { c: "#C13584", n: "📸 Instagram" }, facebook: { c: "#1877F2", n: "📘 Facebook" }, youtube: { c: "#D8261C", n: "▶️ YouTube" } };
+const safeUrl = u => /^https:\/\//.test(u || "") ? esc(u) : "";
+const hms = w => w ? esc(w.hms) : "-";
+const stamp = w => w ? `${esc(w.hms)} <span class="small">${esc(w.date)}</span>` : "-";
+const span = m => m == null ? "-" : m >= 120 ? Math.floor(m / 60) + " h " + (m % 60) + " min" : m + " min";
+const fmtNum = v => typeof v === "number" && !Number.isInteger(v) ? v.toFixed(1) : Number(v).toLocaleString("en");
+const clock = s => s == null ? "-" : Math.floor(s / 60) + ":" + String(Math.round(s % 60)).padStart(2, "0");
+
+function spark(points, w = 84, h = 24) {
+  if (!points || points.length < 2) return "";
+  const lo = Math.min(...points), hi = Math.max(...points), r = hi - lo || 1;
+  const xy = points.map((v, i) => [(i / (points.length - 1) * (w - 6) + 3).toFixed(1), (h - 4 - (v - lo) / r * (h - 8)).toFixed(1)]);
+  const last = xy[xy.length - 1];
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="trend"><polyline points="${xy.map(p => p.join(",")).join(" ")}"/><circle cx="${last[0]}" cy="${last[1]}" r="2.5"/></svg>`;
+}
+function deltaLine(m) {
+  if (m.delta == null) return '<div class="small dim">first reading, the trend starts at the next refresh</div>';
+  const d = m.delta, cls = d > 0 ? "up" : d < 0 ? "down" : "flat";
+  return `<div class="dl"><span class="${cls}">${d > 0 ? "▲ +" : d < 0 ? "▼ " : "= "}${fmtNum(d)}</span> <span class="small">since ${m.since ? hms(m.since) : "-"}</span> ${spark(m.points)}</div>`;
+}
+const STALE_MS = 30 * 60 * 1000;
+function asOf(m) {      // each number says when it was read; stale when older than 30 min (also judged here, so a board whose refresh stopped shows it)
+  const old = !m.at || (Date.now() - Date.parse(m.at)) > STALE_MS || m.stale;
+  return `<div class="asof small">as of ${m.as_of ? hms(m.as_of) : "unknown"}${old ? ' <span class="pill stalebadge">stale</span>' : ""}</div>`;
+}
+function metricsBlock(title, cards, intro) {
+  const have = cards.filter(m => m.value != null), none = cards.filter(m => m.value == null);
+  return `<section class="card"><h2>${title}</h2>${intro ? `<div class="small">${intro}</div>` : ""}
+    <div class="mgrid">${have.map(m => `<div class="kpi mc"><div class="l">${m.emoji} ${esc(m.label)}</div><div class="n">${esc(fmtNum(m.value))}</div>${asOf(m)}${m.note ? `<div class="note">${esc(m.note)}</div>` : ""}${deltaLine(m)}</div>`).join("") || '<div class="small">No numbers yet.</div>'}</div>
+    ${none.length ? `<div class="nabox"><b>🕳 Not available yet</b>${none.map(m => `<div class="small">${m.emoji} <b>${esc(m.label)}</b>: ${esc(m.na)}</div>`).join("")}</div>` : ""}</section>`;
+}
+function winPill(w) {
+  if (w.state === "none") return '<span class="win">no window</span>';
+  const end = Date.parse(w.end.utc), start = Date.parse(w.start.utc), now = Date.now();
+  if (now < start) return `<span class="win soon">⏳ goes live in ${span(Math.max(0, Math.round((start - now) / 60000)))}</span>`;
+  if (now <= end) return `<span class="win open">🟢 72 h window open · ${span(Math.round((end - now) / 60000))} left</span> <span class="small">closes ${hms(w.end)}</span>`;
+  return `<span class="win">⚪ 72 h window closed ${hms(w.end)}</span>`;
+}
+
+// ---- notes for Claude
+function noteBox(platform, post, label) {
+  const M = window.__MONITOR__, id = `${platform}-${post}`, mine = M.notes.filter(n => n.platform === platform && n.post === post);
+  return `<div class="notebox"><div class="small"><b>📝 ${esc(label)}</b> · Claude reads this on its next session</div>
+    <textarea class="ar" id="nt-${esc(id)}" rows="2" maxlength="2000" placeholder="Write a note for Claude" aria-label="Note for Claude" ${SERVED ? "" : "disabled"}></textarea>
+    <div class="btns"><button class="btn allow" data-note="${esc(id)}" data-platform="${esc(platform)}" data-post="${esc(post)}" ${SERVED ? "" : "disabled"}>💾 Save note</button>${SERVED ? "" : '<span class="small">open the board with <code>python board/serve.py</code> to save notes</span>'}<span class="msg" id="nm-${esc(id)}"></span></div>
+    ${mine.slice(0, 6).map(noteRow).join("")}</div>`;
+}
+function noteRow(n) {
+  return `<div class="note-row"><span class="small">${stamp(n.when)}${n.platform !== "all" ? " · " + esc(n.platform) : ""}${n.post !== "general" ? " · " + esc(n.post) : ""}</span> ${n.picked_up ? `<span class="pill ok">✅ picked up ${hms(n.picked_when)}</span>` : '<span class="pill wait">⏳ waiting</span>'}<div class="ar">${esc(n.text)}</div></div>`;
+}
+async function saveNote(b) {
+  const ta = document.getElementById("nt-" + b.dataset.note), m = document.getElementById("nm-" + b.dataset.note);
+  try {
+    const r = await fetch("/api/note", { method: "POST", headers: { "Content-Type": "application/json", "X-Board-Token": TOKEN }, body: JSON.stringify({ platform: b.dataset.platform, post: b.dataset.post, text: ta.value }) });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || "failed");
+    ta.value = "";
+    if (m) { m.className = "msg ok"; m.textContent = " saved"; }
+    setTimeout(load, 300);
+  } catch (e) { if (m) { m.className = "msg err"; m.textContent = " " + String(e.message || e); } }
+}
+const typing = () => [...document.querySelectorAll(".notebox textarea")].some(t => t.value.trim());
+
+// ---- threads and the replies monitor
+function commentRow(c) {
+  const st = c.status === "sent" || c.status === "replied" ? "ok" : c.status === "new" ? "wait" : c.status === "failed" ? "fail" : "pending";
+  return `<div class="cm"><div class="small">${c.own ? "🟣 us" : "👤"} <b>${esc(c.who)}</b> · ${hms(c.when)} ${pill(c.status, st)}${c.kind ? " " + pill(c.kind, "draft") : ""}${c.reason ? ` <span class="dim">${esc(c.reason)}</span>` : ""}</div>
+    <div class="quote ar">${esc(c.text)}</div>
+    ${c.replies.map(r => `<div class="rep ${r.own ? "mine" : ""}"><span class="small">${r.own ? "🟣 us" : "👤"} <b>${esc(r.who)}</b> · ${hms(r.when)}</span><div class="ar">${esc(r.text)}</div></div>`).join("")}
+    ${c.sent.map(r => `<div class="rep mine"><span class="small">🤖 our reply · ${hms(r.when)}</span><div class="ar">${esc(r.text)}</div></div>`).join("")}</div>`;
+}
+function repliesLog(pf, p) {
+  const drafts = p.drafts.map(d => `<div class="cm"><div class="small">✍️ ${pill(d.status)} ${pill(d.kind || "?", "draft")} ${d.not_before ? "goes out after " + hms(d.not_before) : ""}${d.to ? " · to: " : ""}<span class="ar">${esc(d.to)}</span></div><div class="quote ar">${esc(d.text)}</div></div>`).join("");
+  const sent = p.sent.map(s => `<div class="cm"><div class="small">🤖 ${esc(PF[pf].n)} · ${stamp(s.when)} ${s.kind ? pill(s.kind, "draft") : ""}</div><div class="quote ar">${esc(s.text)}</div></div>`).join("");
+  return `<details class="sec" ${p.drafts.length || p.sent.length ? "open" : ""}><summary>🤖 What the bot said (${p.sent.length}) · drafts waiting (${p.drafts.length})</summary>${drafts}${sent || '<div class="small">Nothing sent yet on this post.</div>'}</details>`;
+}
+function igExtras(ep) {
+  const x = D.posts.find(q => q.episode === ep);
+  if (!x) return "";
+  const v = x.vote, tot = v ? Math.max(1, (v.counts["1"] || 0) + (v.counts["2"] || 0)) : 1;
+  return `<div class="votebox"><div class="small">🗳 Vote: ${v ? (v.choices || []).map(c => `<b>${esc(c.id)}</b> <span class="ar">${esc(c.text_ar)}</span>: ${v.counts[c.id] ?? 0}`).join(" · ") + " · " + esc(v.status) + (v.winner ? ", winner " + esc(v.winner) : "") : "not counted yet"} · harvest ${x.harvested ? "done" : "due " + fmtT(x.harvest_due)}${x.brief ? " · next brief written" : ""}</div>${v ? `<div class="bar two"><i style="width:${(v.counts["1"] || 0) / tot * 100}%"></i><i style="width:${(v.counts["2"] || 0) / tot * 100}%"></i></div>` : ""}${x.alert ? `<div class="msg err">${esc(x.alert)}</div>` : ""}</div>`;
+}
+function youtubeExtras(ep) {
+  const x = D.posts.find(q => q.episode === ep), y = x && x.youtube;
+  return y ? `<div class="small">▶️ privacy ${esc(y.privacy || "?")}${y.locked_private ? " (locked until the API audit passes)" : ""}${y.playlist ? " · in playlist" : y.playlist_error ? " · playlist: " + esc(y.playlist_error).slice(0, 80) : ""}</div>` : "";
+}
+
+function postCard(pf, p) {
+  const open = safeUrl(p.url), t = p.thumb || {};
+  const img = t.src ? `<img class="thumb" src="${esc(t.src)}" ${t.local && t.local !== t.src ? `data-fb="${esc(t.local)}" onerror="if(this.dataset.fb&&this.getAttribute('src')!==this.dataset.fb){this.src=this.dataset.fb}"` : ""} alt="Cover of ${esc(p.episode)}" loading="lazy">` : '<div class="thumb ph">🎞<br>no thumbnail yet</div>';
+  let h = `<article class="card post" style="--pc:${PF[pf].c}"><div class="phead"><div>${img}</div><div class="pinfo">
+    <h2>${esc(p.episode)} <span class="small">${esc(PF[pf].n)}${p.state ? " · " + esc(p.state) : ""}</span></h2>
+    ${p.title ? `<div class="ptitle ar">${esc(p.title)}</div>` : ""}${p.caption ? `<div class="pcap ar small">${esc(p.caption)}</div>` : ""}
+    <div class="row2" style="margin-top:6px"><span>🕒 posted <b>${hms(p.posted)}</b> <span class="small">${esc(p.posted ? p.posted.date : "")} Amman${p.scheduled_note ? " · " + esc(p.scheduled_note) : ""}</span></span><span>🎬 length <b>${p.duration_s != null ? clock(p.duration_s) : "-"}</b></span></div>
+    <div class="row2" style="margin-top:6px">${winPill(p.window)}</div>
+    <div style="margin-top:6px">${open ? `<a class="golink" href="${open}" target="_blank" rel="noopener">🔗 Open the live post</a>` : '<span class="small">no link yet</span>'}</div>
+    ${pf === "youtube" ? youtubeExtras(p.episode) : ""}</div></div>`;
+  h += metricsBlock("📊 This post", p.metrics, `numbers as of ${p.metrics_at ? hms(p.metrics_at) : "no fetch yet"} Amman · refreshed ${hms(window.__MONITOR__.generated)}`);
+  if (p.retention_curve) h += `<div class="row2" style="margin:6px 0">📉 ${spark(p.retention_curve, 160, 32)} <span class="small">audience still watching, start to end</span></div>`;
+  else if (p.retention_curve_na) h += `<div class="small" style="margin:6px 0">📉 retention curve: not available yet: ${esc(p.retention_curve_na)}</div>`;
+  if (pf !== "youtube") h += `<div class="small" style="margin-top:8px">📲 Stories: ${p.stories.length ? p.stories.map(s => `${esc(s.kind)} ${pill(s.state || "?", s.state === "published" ? "ok" : "draft")} ${hms(s.when)}`).join(" &nbsp;·&nbsp; ") : "none yet"}</div>`;
+  if (pf === "instagram") h += igExtras(p.episode);
+  h += repliesLog(pf, p);
+  h += `<details class="sec" ${p.comments.length ? "open" : ""}><summary>💬 Comments and replies (${p.comments_total}${p.comments_reported > p.comments_total ? " read of " + p.comments_reported + " reported" : ""})</summary>${p.comments.length ? p.comments.map(commentRow).join("") : '<div class="small">No comments read yet. They arrive with the inbox harvest (<code>tools/inbox.py harvest</code>).</div>'}${p.comments_total > p.comments.length ? `<div class="small">Showing the newest ${p.comments.length}.</div>` : ""}</details>`;
+  return h + noteBox(pf, p.episode, "Note about " + p.episode) + "</article>";
+}
+function dmCard(P, pf) {
+  const d = P.dms;
+  if (d.note) return `<section class="card"><h2>📩 Direct messages</h2><div class="small">${esc(d.note)}</div></section>`;
+  const s = d.source, bad = s && s.status !== "ok";
+  let h = `<section class="card"><h2>📩 Direct messages ${d.unanswered ? `<span class="badge amber">${d.unanswered} waiting</span>` : ""}</h2>
+    <div class="small">${bad ? `not available yet: ${esc(s.status)}${s.error ? " (" + esc(s.error) + ")" : ""}` : `source ${pill(s.status, "ok")} last read ${s.last_ok ? hms(s.last_ok) : "-"}`}</div>`;
+  h += d.threads.length ? d.threads.map(t => `<div class="cm"><div class="small">👤 <b>${esc(t.who)}</b> · ${t.count} message(s) · ${stamp(t.when)} ${t.unanswered ? pill("waiting", "wait") : pill(t.last_own ? "we answered" : "read", "ok")}${t.reply_open_until ? ` <span class="dim">can reply until ${hms(t.reply_open_until)}</span>` : ""}</div><div class="quote ar">${esc(t.last)}</div></div>`).join("") : '<div class="small">No messages yet.</div>';
+  h += d.drafts.map(x => `<div class="cm"><div class="small">✍️ draft ${pill(x.status)} ${x.not_before ? "goes out after " + hms(x.not_before) : ""}</div><div class="quote ar">${esc(x.text)}</div></div>`).join("");
+  h += d.sent.map(x => `<div class="cm"><div class="small">🤖 ${esc(PF[pf].n)} DM · ${stamp(x.when)}</div><div class="quote ar">${esc(x.text)}</div></div>`).join("");
+  return h + "</section>";
+}
+// ---- the Haiku engagement log of a platform: what came in, what we did, why, and the likes only a person can do (R-474 to R-479)
+function engageLog(pf, P) {
+  const E = P.engage;
+  if (!E) return "";
+  const act = a => !a ? pill("pending", "pending") : a === "like: no API" ? pill("👍 like: no API", "wait") : a === "skip" ? pill("⏭ skip", "draft") : pill(({ reply: "💬 reply", like: "👍 like", react: "❤️ react" })[a] || a, a === "reply" ? "ok" : "draft");
+  const rows = E.log.map(x => `<div class="cm"><div class="small">${x.dm ? "📩" : "💬"} <b>${esc(x.who)}</b> · ${hms(x.when)} ${act(x.action)} ${x.kind ? pill(x.kind, "draft") : ""} ${x.status ? pill(x.status, x.status === "sent" || x.status === "liked" ? "ok" : x.status === "failed" ? "fail" : "pending") : ""}</div>
+    ${x.text ? `<div class="quote ar">${esc(x.text)}</div>` : ""}
+    ${x.reply ? `<div class="rep mine"><span class="small">🤖 our reply${x.done ? " · " + hms(x.done) : ""}${x.how ? " · " + esc(x.how) : ""}</span><div class="ar">${esc(x.reply)}</div></div>` : ""}
+    ${x.why ? `<div class="small dim">🧠 why: ${esc(x.why)}</div>` : ""}</div>`).join("");
+  const todo = E.likes_todo.map(x => `<div class="cm"><div class="small">👍 ${hms(x.when)} · ${esc(x.episode || "")} · id ${esc(x.comment_id)}</div>${x.text ? `<div class="quote ar">${esc(x.text)}</div>` : ""}<div class="small dim">${esc(x.reason)}</div></div>`).join("");
+  return `<section class="card"><h2>🤖 Engage log: ${esc(P.name)} <span class="small">comments${E.no_dm_api ? " (YouTube has no DMs)" : " and DMs"} · Haiku decides</span></h2>
+    <details class="sec" ${E.log.length ? "open" : ""}><summary>What came in and what we did (${E.log.length})</summary>${rows || '<div class="small">Nothing seen yet.</div>'}</details>
+    <details class="sec" ${E.likes_todo.length ? "open" : ""}><summary>👍 Like: no API, do in session (${E.likes_todo.length})</summary><div class="small">${pf === "facebook" ? "Facebook likes go out by API; this list stays empty." : "No official API for this like: Claude does these in the browser at low volume."}</div>${todo}</details></section>`;
+}
+// ---- "Comments to post (the owner)": drafts for other accounts' latest posts (A3 niche, A5 big) and the sticker-story card (A1). the owner posts these by hand; nothing here sends.
+function afterCards(A) {
+  if (!A) return "";
+  const t = A.today || { niche: 0, big: 0 }, c = A.caps || { niche: 10, big: 3 };
+  const rows = (A.drafts || []).map(d => `<div class="cm"><div class="small">${d.tier === "big" ? "🐘 big" : "🎯 niche"} · <b>@${esc(d.handle)}</b>${d.followers ? " · " + esc(fmtNum(d.followers)) + " followers" : ""} · ${esc(d.post_type || "")} · ${esc(d.type || "")}${d.permalink ? ` · <a class="golink alt" href="${safeUrl(d.permalink)}" target="_blank" rel="noopener">open the post</a>` : ""}</div>
+    ${d.caption_excerpt ? `<div class="quote ar small">${esc(d.caption_excerpt)}</div>` : ""}<div class="rep mine"><span class="small">✍️ draft (${esc(d.lang || "")})</span><div class="ar">${esc(d.text)}</div></div>
+    <div class="small dim">after you post it: <code>uv run tools/after_post.py mark ${esc(d.key)} posted</code> · ${esc(d.why || "")}</div></div>`).join("");
+  const stick = (A.stickers || []).map(c2 => `<div class="cm"><div class="small">📱 ${esc(c2.episode)} sticker story · ${esc(c2.state || "")}${c2.background ? " · background: " + esc(c2.background) : ""}</div>${(c2.stickers || []).map(s2 => `<div class="rep mine"><span class="small">${esc(s2.type)}${s2.emoji ? " " + esc(s2.emoji) : ""}${s2.ends_amman ? " · ends " + esc(s2.ends_amman) + " Amman" : ""}</span><div class="ar">${esc(s2.text || s2.title || "")}</div></div>`).join("")}</div>`).join("");
+  return `<section class="card"><h2>📝 Comments to post (the owner) <span class="small">today ${t.niche}/${c.niche} niche · ${t.big}/${c.big} big · ${A.peers || 0} peers</span></h2>
+    <div class="small">${esc(A.note || "")}</div>${rows || '<div class="small">No drafts waiting.</div>'}${(A.problems || []).length ? `<div class="small dim">peers.json: ${esc(A.problems.join("; "))}</div>` : ""}
+    <details class="sec" ${stick ? "open" : ""}><summary>📱 Sticker story for your phone (Question, emoji slider, countdown)</summary>${stick || '<div class="small">Written when an episode goes live.</div>'}</details></section>`;
+}
+function engageCards(E) {
+  if (!E) return '<div class="card"><h2>🤝 Engage</h2><div class="small">No engagement data yet. The 72 h window starts when a post goes live. Run <code>uv run tools/engage.py run</code> (dry).</div></div>';
+  const row = (a, b) => `<tr><td>${esc(a)}</td><td class="small">${esc(b)}</td></tr>`;
+  return `<details class="sec card"><summary>🤝 Engage: caps, windows and all drafts</summary><div class="grid" style="margin-top:8px">${kpi(E.sent_today, "replies sent today")}${kpi(E.drafts.length, "drafts waiting")}${kpi(Object.keys(E.halt || {}).length, "platforms halted")}</div>
+    <h2>72 h windows</h2><table>${E.episodes.map(e => row(e.episode + " (" + e.status + ")", "replies sent " + e.replies_sent + "; kinds " + JSON.stringify(e.items_by_kind) + "; not replied: " + JSON.stringify(e.skipped_by_reason))).join("") || row("-", "none")}</table>
+    <h2 style="margin-top:10px">Drafts (dry runs stay here until --go)</h2><table>${E.drafts.map(d => row(d.platform + " " + d.kind + " " + (d.not_before || "").slice(11, 16) + "Z", d.text || "")).join("") || row("-", "none")}</table></details>`;
+}
+function strip(cur) {
+  const M = window.__MONITOR__;
+  return `<nav class="pfstrip" aria-label="Platforms">${[["all", "📊 All"], ...Object.keys(PF).map(k => [k, PF[k].n])].map(([k, n]) => {
+    const x = M && M.platforms[k], b = x ? x.totals.drafts + x.totals.dms_unanswered : 0;
+    return `<button data-tab="${k}" class="${k === cur ? "on" : ""}" style="--pc:${PF[k] ? PF[k].c : "#7A1F3D"}">${esc(n)}${b ? `<span class="badge amber">${b}</span>` : ""}</button>`;
+  }).join("")}</nav>`;
+}
+function noMonitor() { return '<div class="hook amber"><div class="big">No monitor data yet</div><div class="small">Run <code>uv run tools/ig_board.py refresh</code> (the Board task does it every 15 minutes).</div></div>'; }
+
+function monAll() {
+  const M = window.__MONITOR__;
+  if (!M) return noMonitor();
+  const S = M.summary;
+  let h = strip("all") + `<div class="hook ${S.windows_open ? "green" : ""}"><div class="big">📡 ${S.windows_open} window(s) open · ${S.drafts} draft(s) · ${S.dms_unanswered} DM(s) waiting · ${S.notes_waiting} note(s) waiting</div><div class="small">Every post is watched for 72 h on its platform. Read only: nothing here sends. Refreshed ${stamp(M.generated)} Amman.</div></div>`;
+  h += metricsBlock("📊 All platforms together", M.all.metrics, `${M.all.posts} post(s) on ${Object.keys(PF).length} platforms, added up. Reach, watch time and view % are not added across platforms: see each platform.`);
+  h += `<div class="pfgrid">${Object.keys(PF).map(k => { const P = M.platforms[k], T = P.totals, top = P.metrics.filter(m => m.value != null && ["views", "likes", "comments", "shares"].includes(m.key));
+    return `<a class="pfcard" data-tab="${k}" href="#${k}" style="--pc:${PF[k].c}"><div class="big">${esc(PF[k].n)}</div><div class="small">${T.posts} post(s) · ${T.windows_open} window(s) open · ${T.drafts} draft(s) · ${T.dms_unanswered} DM(s)</div><div class="row2">${top.map(m => `<span>${m.emoji} <b>${esc(fmtNum(m.value))}</b></span>`).join("") || '<span class="small">no numbers yet</span>'}</div></a>`; }).join("")}</div>`;
+  h += `<section class="card"><h2>📝 Notes for Claude</h2>${noteBox("all", "general", "General note (any platform)")}${M.notes.length ? "<h2 style='margin-top:12px'>All notes</h2>" + M.notes.slice(0, 30).map(noteRow).join("") : ""}</section>`;
+  return h + afterCards(window.__AFTER__) + engageCards(window.__ENGAGE__);
+}
+function platformPage(pf) {
+  const M = window.__MONITOR__;
+  if (!M) return noMonitor();
+  const P = M.platforms[pf], T = P.totals;
+  let h = strip(pf) + `<section class="card pfhead" style="--pc:${PF[pf].c}"><h2>${esc(P.name)} ${P.link ? `<a class="golink alt" href="${safeUrl(P.link)}" target="_blank" rel="noopener">Open the ${pf === "youtube" ? "channel" : pf === "facebook" ? "page" : "account"}</a>` : `<span class="small">${esc(P.link_note || "")}</span>`}</h2>
+    <div class="grid">${kpi(T.posts, "posts")}${kpi(T.windows_open, "🟢 windows open")}${kpi(T.replies_sent, "🤖 our replies sent")}${kpi(T.drafts, "✍️ drafts waiting")}${kpi(T.dms_unanswered, "📩 DMs waiting")}</div>
+    <div class="small">👥 followers: not available yet: ${esc(T.followers.na)}</div>
+    ${T.halted_until ? `<div class="msg err">Replies on this platform are halted until ${hms(T.halted_until)} (an API error).</div>` : ""}${P.stories_note ? `<div class="small">${esc(P.stories_note)}</div>` : ""}</section>`;
+  h += metricsBlock("📊 " + P.name + " together", P.metrics, "all posts on this platform, added up");
+  h += P.posts.length ? P.posts.map(p => postCard(pf, p)).join("") : `<div class="hook"><div class="big">Nothing posted on ${esc(P.name)} yet</div><div class="small">A post appears here the moment its record exists.</div></div>`;
+  h += dmCard(P, pf);
+  h += engageLog(pf, P);
+  if (pf === "instagram") h += afterCards(window.__AFTER__);
+  h += `<section class="card"><h2>📝 Notes for Claude</h2>${noteBox(pf, "general", "General note about " + P.name)}</section>`;
+  if (pf === "instagram") h += `<details class="sec card"><summary>🗳 Votes, ideas, reply drafts and every comment (Instagram board flow)</summary>${comments()}</details>`;
+  return h;
+}
+const monInstagram = () => platformPage("instagram"), monFacebook = () => platformPage("facebook"), monYoutube = () => platformPage("youtube");
+
+function learning() {
+  const L = window.__LEARNING__;
+  if (!L) return '<div class="hook amber"><div class="big">Nothing learned yet</div><div class="small">The build retro runs after each episode, the audience review 14 h after each post. Run <code>uv run tools/learn.py board</code>.</div></div>';
+  const row = (a, b) => `<tr><td>${esc(a)}</td><td class="small">${esc(b)}</td></tr>`;
+  let h = `<div class="grid">${kpi(L.counts.rules, "playbook rules (seen 2+ times)")}${kpi(L.counts.candidates, "candidates (seen once)")}${kpi(L.counts.pending_proposals, "proposals waiting for a session")}</div>`;
+  h += `<div class="card"><h2>Where our viewers are</h2><div class="small">${esc(L.where || "not measured yet")}</div><table><tr><th>Episode</th><th>Source</th><th>SA</th><th>IQ</th><th>EG</th><th>Top 5</th></tr>${(L.countries || []).map(c => `<tr><td>${esc(c.episode)}</td><td class="small">${esc(c.source)}</td>${["SA", "IQ", "EG"].map(k => `<td>${(c.shares[k] * 100).toFixed(1)}%</td>`).join("")}<td class="small">${esc(c.top5.map(t => t[0] + " " + (t[2] * 100).toFixed(1) + "%").join(", "))}</td></tr>`).join("")}</table></div>`;
+  h += `<div class="card"><h2>Latest lessons</h2><table>${L.lessons.map(l => row(l.build + " " + l.id, l.summary + (l.fix ? " Next time: " + l.fix : ""))).join("") || row("-", "none yet")}</table></div>`;
+  h += `<div class="card"><h2>Playbook rules</h2><table>${L.rules.map(r => row(r.section + " (" + r.episodes.join(", ") + ")", r.text)).join("") || row("-", "no rule yet: a finding becomes a rule after it repeats")}</table></div>`;
+  h += `<div class="card"><h2>Recent candidates</h2><table>${L.candidates.map(r => row(r.section + " (" + r.episodes.join(", ") + ")", r.text)).join("") || row("-", "none")}</table></div>`;
+  h += `<div class="card"><h2>Proposals (never applied by the learning phase)</h2><table>${L.proposals.map(p => row(p.id + " " + p.kind, (p.target ? p.target + ": " : "") + p.text)).join("") || row("-", "none pending")}</table></div>`;
+  h += `<div class="card"><h2>Episodes</h2><table>${L.episodes.map(e => row(e.episode, "retro " + (e.retro || "-") + ", review " + (e.review || "-") + (e.summary ? ". " + e.summary : ""))).join("") || row("-", "none yet")}</table></div>`;
+  return h;
+}
+
+async function decide(id, action) {
+  const m = document.getElementById("m-" + id), ta = document.getElementById("t-" + id);
+  try {
+    const r = await fetch("/api/reply", { method: "POST", headers: { "Content-Type": "application/json", "X-Board-Token": TOKEN }, body: JSON.stringify({ id, action, text: ta ? ta.value : undefined }) });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || "failed");
+    if (m) { m.className = "msg ok"; m.textContent = action === "approve" ? "Approved: the Harvest task sends it within the daily limit." : "Rejected."; }
+    setTimeout(load, 600);
+  } catch (e) { if (m) { m.className = "msg err"; m.textContent = String(e.message || e); } }
+}
+
+// Back button: go() records each tab/section left in `trail`; Back returns to the last one, and with an empty
+// trail it goes to Today. Hidden only on Today with nothing to go back to.
+const backbtn = document.getElementById("backbtn");
+function syncBack() { backbtn.hidden = !trail.length && tab === "today"; }
+backbtn.addEventListener("click", () => go(trail.pop() || "today", true));
+window.addEventListener("hashchange", () => { const t = route(location.hash); if (t !== tab) trail.push(tab); tab = t; render(); syncBack(); });
+syncBack();
+load(); setInterval(load, 60000);
+</script>
+</body>
+</html>

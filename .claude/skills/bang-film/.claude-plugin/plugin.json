@@ -1,0 +1,23 @@
+{
+  "name": "bang-film",
+  "displayName": "Bang Film",
+  "version": "1.2.0",
+  "description": "Design AI live-action video — vertical microdrama series, short films, single scenes or trailers — and write the prompts you paste into any AI image and video model. It never generates media: you get a concept, a locked cast and set bible, a shot list, three-panel character sheet prompts, set and prop plate prompts, and eleven-block video prompts, one per 4–30 second generation. Aspect ratio, duration and episode count are always asked, never assumed.",
+  "author": {
+    "name": "Bang Tutorial",
+    "url": "https://youtube.com/bangtutorial"
+  },
+  "homepage": "https://github.com/bangtutorial/bang-film",
+  "repository": "https://github.com/bangtutorial/bang-film",
+  "license": "MIT",
+  "keywords": [
+    "ai-video",
+    "microdrama",
+    "short-film",
+    "prompt-writing",
+    "shot-list",
+    "character-sheet",
+    "screenwriting",
+    "video-prompt"
+  ]
+}

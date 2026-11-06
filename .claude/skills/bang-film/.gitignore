@@ -1,0 +1,8 @@
+# proyek uji dan hasil generate lokal, bukan bagian skill
+film/
+*.mp4
+*.mov
+__pycache__/
+.DS_Store
+Thumbs.db
+.claude/

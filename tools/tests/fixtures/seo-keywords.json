@@ -1,0 +1,59 @@
+{
+ "_why": "Neutral test fixture (conftest points tools/seo.py at it). A real project keeps its own data/seo/keywords.json; the shipped example is config/seo-keywords.example.json.",
+ "series": "the series",
+ "hashtags": {
+  "instagram": [
+   "#المكتب",
+   "#قصص_متحركة",
+   "#حكايات"
+  ],
+  "facebook": [
+   "#المكتب",
+   "#قصص_متحركة"
+  ],
+  "youtube": [
+   "#المكتب",
+   "#قصص_متحركة",
+   "#حكايات"
+  ]
+ },
+ "hashtag_test_next": {
+  "what": "swap one hashtag on one platform for 7 days, then compare reach",
+  "evidence": "fixture text, no real measurement"
+ },
+ "youtube_tags": [
+  "the series",
+  "قصص متحركة",
+  "قصص انيميشن",
+  "قصص انيميشن عربية",
+  "قصة متحركة",
+  "حكايات",
+  "حكايات عربية",
+  "قصص عربية",
+  "انيميشن عربي",
+  "رسوم متحركة",
+  "قصص غموض",
+  "قصص هادئة",
+  "قصة قصيرة",
+  "مسلسل انيميشن",
+  "قصص بالعربي",
+  "قصص تفاعلية",
+  "أنتم تقررون",
+  "Arabic animated stories",
+  "Arabic animation"
+ ],
+ "youtube_tags_max_chars": 480,
+ "youtube_keyword_line": "🎬 قصة متحركة بالعربي من سلسلة «the series»: حكايات غموض هادئة، وأنتم تقررون ما يحدث بعدها.",
+ "youtube_category_id": "1",
+ "youtube_license": "youtube",
+ "channel_keywords": "\"the series\" \"قصص متحركة\" \"قصص انيميشن\" \"حكايات عربية\" \"انيميشن عربي\" \"قصص غموض\" \"قصص تفاعلية\"",
+ "instagram_name": "the series | قصص متحركة",
+ "facebook_name": "the series | قصص متحركة",
+ "channel_description": "🎬 قصص متحركة بالعربي: سلسلة «the series»، حكايات غموض هادئة بالرسوم المتحركة.\n🕯️ كل حلقة تنتهي بسؤال: إلى أين تمضي القصة؟ اكتبوا رأيكم في التعليقات وسنكمل على اختياركم.\n📅 حلقة جديدة كل يوم",
+ "channel_language": "ar",
+ "playlist_description": "كل حلقات سلسلة «the series»: قصص متحركة بالعربي، حكايات غموض هادئة بالترتيب من الحلقة الأولى.",
+ "playlists_private": [
+  "Music"
+ ],
+ "facebook_about": "🎬 قصص متحركة بالعربي من سلسلة «the series»: حكايات غموض هادئة، حلقة جديدة كل يوم، وأنتم تقررون ما يحدث بعدها."
+}

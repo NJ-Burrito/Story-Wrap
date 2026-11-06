@@ -1,0 +1,3 @@
+- name: Partner (neutral fixture)
+- voice_signature_words: «نو» (no, no); «فويرا» (fuera, outside)
+- next: x

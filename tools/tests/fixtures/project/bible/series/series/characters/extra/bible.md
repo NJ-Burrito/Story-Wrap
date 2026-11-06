@@ -1,0 +1,3 @@
+- name: Extra (neutral fixture)
+- voice_signature_words: «ديوب» (diop, a greeting); «بور لو دوسييه» (pour le dossier, for the file)
+- next: x

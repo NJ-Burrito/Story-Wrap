@@ -1,0 +1,1676 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "story-wrap/shot-spec/v2",
+ "title": "Story-Wrap shot spec v2 (checked by tools/quality_gate.py spec; merged R-300..R-379)",
+ "type": "object",
+ "required": [
+  "episode",
+  "fps",
+  "characters",
+  "beats",
+  "transitions",
+  "camera_plan"
+ ],
+ "properties": {
+  "episode": {
+   "type": "string"
+  },
+  "fps": {
+   "type": "integer",
+   "enum": [
+    24,
+    30
+   ]
+  },
+  "characters": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "parts",
+     "physics_profile",
+     "rest_proportions",
+     "model_ref",
+     "anchors",
+     "attachments",
+     "emotion_profile",
+     "face_controls"
+    ],
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "parts": {
+      "type": "array",
+      "minItems": 8,
+      "description": "Independently animated pieces: head, torso, pelvis, 2 upper arms, 2 forearms/hands, 2 legs, plus hair, cloth, props.",
+      "items": {
+       "type": "object",
+       "required": [
+        "name",
+        "pivot",
+        "own_curve"
+       ],
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "pivot": {
+         "type": "string",
+         "description": "Joint the part rotates around, e.g. 'shoulder'."
+        },
+        "follows": {
+         "type": "string",
+         "description": "Parent part whose motion this part trails."
+        },
+        "lag_frames": {
+         "type": "integer",
+         "minimum": 0,
+         "description": "Frames this part trails its parent (follow-through)."
+        },
+        "own_curve": {
+         "type": "boolean",
+         "description": "True when the part has its own keyframes/easing, not just the parent transform."
+        },
+        "joint": {
+         "type": "string",
+         "description": "Profile joint id this part rotates about, e.g. 'elbow_flex' (R-301)."
+        },
+        "hand_grip": {
+         "type": "string",
+         "description": "Hand part: id of the held object; needs a poses[].contacts entry (R-310)."
+        },
+        "under_garment": {
+         "type": "boolean",
+         "description": "Hair/neck parts drawn below the scarf layer (R-354)."
+        }
+       }
+      }
+     },
+     "physics_profile": {
+      "type": "string",
+      "description": "Id of the profile (R-300). Default human profile is '_human-default'."
+     },
+     "rest_proportions": {
+      "type": "object",
+      "required": [
+       "head_h",
+       "shoulder_w",
+       "neck_len",
+       "upper_arm",
+       "forearm",
+       "hand",
+       "thigh",
+       "shank"
+      ],
+      "properties": {
+       "head_h": {
+        "type": "number"
+       },
+       "shoulder_w": {
+        "type": "number"
+       },
+       "neck_len": {
+        "type": "number"
+       },
+       "upper_arm": {
+        "type": "number"
+       },
+       "forearm": {
+        "type": "number"
+       },
+       "hand": {
+        "type": "number"
+       },
+       "thigh": {
+        "type": "number"
+       },
+       "shank": {
+        "type": "number"
+       },
+       "shoulder_width_heads_band": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "description": "Stylised override of the 1.8..2.1 band; needs stylised_reason.",
+        "minItems": 2,
+        "maxItems": 2
+       },
+       "stylised_reason": {
+        "type": "string"
+       }
+      },
+      "description": "Rest-pose lengths in one unit (R-307, R-342). Checked: shoulder_w/head_h 1.8..2.1, neck_len/head_h >= 0.25, upper_arm/forearm 1.1..1.4, forearm/hand 1.2..1.5."
+     },
+     "model_ref": {
+      "type": "object",
+      "required": [
+       "id",
+       "version"
+      ],
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "version": {
+        "type": "string"
+       }
+      },
+      "description": "Catalogue model (R-345, R-346)."
+     },
+     "anchors": {
+      "type": "object",
+      "required": [
+       "clavicle_L",
+       "clavicle_R",
+       "neck_base",
+       "head_unit_px"
+      ],
+      "properties": {
+       "clavicle_L": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2
+       },
+       "clavicle_R": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2
+       },
+       "neck_base": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2
+       },
+       "head_unit_px": {
+        "type": "number"
+       }
+      },
+      "description": "Named rig points (extra anchors allowed). clavicle_* = outer ends of the shoulder line (R-341)."
+     },
+     "attachments": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "id",
+        "child",
+        "parent",
+        "parent_anchor",
+        "contact_points",
+        "layer_order"
+       ],
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "child": {
+         "type": "string"
+        },
+        "parent": {
+         "type": "string"
+        },
+        "parent_anchor": {
+         "type": "string",
+         "description": "Named anchor on the parent part."
+        },
+        "kind": {
+         "enum": [
+          "held",
+          "garment",
+          "prop",
+          "body"
+         ]
+        },
+        "contact_points": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "minItems": 1
+        },
+        "layer_order": {
+         "type": "object",
+         "description": "camera angle id -> part ids back to front (R-352)",
+         "additionalProperties": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "minItems": 2
+         }
+        },
+        "max_gap_px": {
+         "type": "number",
+         "description": "Default 4, at most 6 (R-351)."
+        }
+       }
+      },
+      "description": "Held objects and garments: parent, anchor, contact points, layer order per angle (R-350..R-354).",
+      "minItems": 1
+     },
+     "covers_hair": {
+      "type": "boolean",
+      "description": "True for a character who wears a headscarf: hair parts must have under_garment true (R-354)."
+     },
+     "emotion_profile": {
+      "type": "object",
+      "required": [
+       "baseline",
+       "display_rules",
+       "hidden_feeling_channel",
+       "leak"
+      ],
+      "properties": {
+       "baseline": {
+        "type": "object"
+       },
+       "display_rules": {
+        "type": "object"
+       },
+       "hidden_feeling_channel": {
+        "type": "string"
+       },
+       "leak": {
+        "type": "object"
+       },
+       "never_uses": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "overrides": {
+        "type": "object"
+       }
+      },
+      "description": "R-372."
+     },
+     "face_controls": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "The AU controls of the face rig, >= 12 (R-365).",
+      "minItems": 12
+     }
+    }
+   }
+  },
+  "beats": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "start",
+     "end",
+     "treatment",
+     "treatment_reason",
+     "depth_planes",
+     "light",
+     "cast_shadows",
+     "interactions",
+     "poses",
+     "texts",
+     "emotion",
+     "emotion_track"
+    ],
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "start": {
+      "type": "number"
+     },
+     "end": {
+      "type": "number"
+     },
+     "treatment": {
+      "enum": [
+       "A",
+       "B",
+       "A+B"
+      ],
+      "description": "A = clear-line depth, B = halftone + mixed frame rates."
+     },
+     "treatment_reason": {
+      "type": "string",
+      "description": "Why this beat gets this treatment (action, plot, feeling)."
+     },
+     "depth_planes": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+       "type": "object",
+       "required": [
+        "id",
+        "parallax"
+       ],
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "content": {
+         "type": "string"
+        },
+        "parallax": {
+         "type": "number",
+         "description": "Camera-move factor. Background < 1, subject plane 1, foreground > 1. At least 4 distinct values, gaps >= 0.12."
+        }
+       }
+      }
+     },
+     "light": {
+      "type": "object",
+      "required": [
+       "key",
+       "fill",
+       "rim"
+      ],
+      "properties": {
+       "key": {
+        "type": "object",
+        "required": [
+         "dir",
+         "color"
+        ],
+        "properties": {
+         "dir": {
+          "type": "string"
+         },
+         "color": {
+          "type": "string"
+         },
+         "source": {
+          "type": "string"
+         },
+         "size": {
+          "type": "number",
+          "description": "Light size 0..1; penumbra grows with it (R-358)."
+         }
+        }
+       },
+       "fill": {
+        "type": "object",
+        "required": [
+         "dir",
+         "color"
+        ]
+       },
+       "rim": {
+        "type": "object",
+        "required": [
+         "dir",
+         "color"
+        ]
+       },
+       "serves_emotion": {
+        "type": "string",
+        "description": "Emotion this light serves; equals emotion.primary or secondary (R-371)."
+       }
+      }
+     },
+     "cast_shadows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "object",
+       "required": [
+        "caster",
+        "receiver",
+        "source",
+        "proxy",
+        "light"
+       ],
+       "properties": {
+        "caster": {
+         "type": "string"
+        },
+        "receiver": {
+         "type": "string",
+         "description": "A non-ground receiver (wall, prop, own body) is required in at least one entry unless two shadows are listed."
+        },
+        "source": {
+         "const": "mass_proxy",
+         "description": "Never the drawing (R-317, R-355)."
+        },
+        "proxy": {
+         "type": "string",
+         "description": "Volume set id in mass-proxy.json."
+        },
+        "light": {
+         "type": "string",
+         "description": "key|fill|lamp id; its size sets the penumbra (R-358)."
+        },
+        "self_shadow": {
+         "type": "boolean",
+         "description": "Body shades itself (R-359); >= 1 per beat."
+        },
+        "contacts": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "required": [
+           "a",
+           "b"
+          ],
+          "properties": {
+           "a": {
+            "type": "string"
+           },
+           "b": {
+            "type": "string"
+           },
+           "occlusion": {
+            "type": "boolean"
+           }
+          }
+         },
+         "description": "One per contact/grab interaction (R-357)."
+        }
+       }
+      }
+     },
+     "interactions": {
+      "type": "array",
+      "minItems": 1,
+      "description": "At least 1 per beat and 1 per 3 s: one object visibly changes another.",
+      "items": {
+       "type": "object",
+       "required": [
+        "cause",
+        "effect",
+        "kind"
+       ],
+       "properties": {
+        "cause": {
+         "type": "string"
+        },
+        "effect": {
+         "type": "string"
+        },
+        "kind": {
+         "enum": [
+          "contact",
+          "displace",
+          "occlude",
+          "light-spill",
+          "cast-shadow",
+          "wind",
+          "splash-dust",
+          "grab",
+          "reflect"
+         ]
+        },
+        "carries_emotion": {
+         "type": "boolean",
+         "description": "At least one per beat (R-369)."
+        }
+       }
+      }
+     },
+     "actions": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "part"
+       ],
+       "properties": {
+        "part": {
+         "type": "string"
+        },
+        "anticipation_frames": {
+         "type": "integer"
+        },
+        "no_anticipation_because": {
+         "type": "string"
+        },
+        "overshoot": {
+         "type": "boolean"
+        }
+       }
+      }
+     },
+     "elements": {
+      "type": "array",
+      "description": "Every on-screen element with the longest time it is static in this beat.",
+      "items": {
+       "type": "object",
+       "required": [
+        "id",
+        "static_s"
+       ],
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "static_s": {
+         "type": "number"
+        }
+       }
+      }
+     },
+     "holds": {
+      "type": "array",
+      "description": "Deliberate holds. Each <= 0.8 s, with a reason; all holds <= 10% of runtime.",
+      "items": {
+       "type": "object",
+       "required": [
+        "element",
+        "start",
+        "end",
+        "why"
+       ],
+       "properties": {
+        "element": {
+         "type": "string"
+        },
+        "start": {
+         "type": "number"
+        },
+        "end": {
+         "type": "number"
+        },
+        "why": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "camera_move_pct": {
+      "type": "number",
+      "description": "Camera travel in the beat as % of frame width (push, track or pan). >= 4 or give locked_camera_because."
+     },
+     "locked_camera_because": {
+      "type": "string"
+     },
+     "poses": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "character",
+        "pose_id"
+       ],
+       "properties": {
+        "character": {
+         "type": "string"
+        },
+        "pose_id": {
+         "type": "string"
+        },
+        "catalogue": {
+         "type": "string",
+         "description": "'id@version' of the catalogue entry (R-346)."
+        },
+        "new": {
+         "type": "boolean",
+         "description": "Not in the catalogue: needs build_up_sheet (R-306)."
+        },
+        "build_up_sheet": {
+         "type": "string"
+        },
+        "contacts": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "required": [
+           "part",
+           "target",
+           "t0",
+           "t1"
+          ],
+          "properties": {
+           "part": {
+            "type": "string"
+           },
+           "target": {
+            "type": "string"
+           },
+           "t0": {
+            "type": "number"
+           },
+           "t1": {
+            "type": "number"
+           },
+           "kind": {
+            "enum": [
+             "grip",
+             "touch",
+             "tool-tip"
+            ]
+           }
+          }
+         },
+         "description": "Hand/tool contacts (R-304, R-310, R-311)."
+        },
+        "exceed": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "required": [
+           "joint",
+           "t0",
+           "t1",
+           "reason"
+          ],
+          "properties": {
+           "joint": {
+            "type": "string"
+           },
+           "t0": {
+            "type": "number"
+           },
+           "t1": {
+            "type": "number"
+           },
+           "reason": {
+            "enum": [
+             "impact",
+             "comedy"
+            ]
+           }
+          }
+         },
+         "description": "Soft-limit exceed windows, <= 4 frames (R-301)."
+        },
+        "stretch_events": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "required": [
+           "segment",
+           "t0",
+           "t1",
+           "max_scale"
+          ],
+          "properties": {
+           "segment": {
+            "type": "string"
+           },
+           "t0": {
+            "type": "number"
+           },
+           "t1": {
+            "type": "number"
+           },
+           "max_scale": {
+            "type": "number"
+           }
+          }
+         },
+         "description": "Stretch windows, <= the profile (R-303, R-319)."
+        }
+       }
+      },
+      "minItems": 1
+     },
+     "texts": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "id",
+        "string",
+        "lang",
+        "box",
+        "layer",
+        "plate",
+        "min_contrast",
+        "height_px",
+        "read_time_s",
+        "t0",
+        "t1"
+       ],
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "string": {
+         "type": "string"
+        },
+        "lang": {
+         "enum": [
+          "ar",
+          "en"
+         ]
+        },
+        "box": {
+         "type": "object",
+         "required": [
+          "x",
+          "y",
+          "w",
+          "h"
+         ],
+         "properties": {
+          "x": {
+           "type": "number"
+          },
+          "y": {
+           "type": "number"
+          },
+          "w": {
+           "type": "number"
+          },
+          "h": {
+           "type": "number"
+          }
+         },
+         "description": "px at 1080x1920"
+        },
+        "layer": {
+         "const": "top"
+        },
+        "plate": {
+         "enum": [
+          "opaque-flat",
+          "caption-bar"
+         ]
+        },
+        "min_contrast": {
+         "type": "number",
+         "minimum": 4.5
+        },
+        "height_px": {
+         "type": "number",
+         "minimum": 28
+        },
+        "role": {
+         "enum": [
+          "main",
+          "sub"
+         ]
+        },
+        "decor": {
+         "type": "boolean"
+        },
+        "read_time_s": {
+         "type": "number"
+        },
+        "t0": {
+         "type": "number",
+         "description": "Seconds on screen from."
+        },
+        "t1": {
+         "type": "number"
+        },
+        "appear": {
+         "type": "string"
+        },
+        "leave": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "Every on-screen text (an empty list is allowed). R-334..R-339."
+     },
+     "emotion": {
+      "type": "object",
+      "required": [
+       "primary",
+       "intensity",
+       "shown",
+       "cause"
+      ],
+      "properties": {
+       "primary": {
+        "enum": [
+         "calm",
+         "joy",
+         "sadness",
+         "fear",
+         "anger",
+         "surprise",
+         "disgust",
+         "contempt",
+         "shame",
+         "longing",
+         "suspicion",
+         "dread",
+         "relief",
+         "bitter-joy"
+        ]
+       },
+       "secondary": {
+        "type": "string"
+       },
+       "blend": {
+        "type": "object",
+        "additionalProperties": {
+         "type": "number",
+         "minimum": 0,
+         "maximum": 1
+        }
+       },
+       "intensity": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+       },
+       "shown": {
+        "enum": [
+         "visible",
+         "hidden"
+        ]
+       },
+       "leak_channel": {
+        "enum": [
+         "eyes",
+         "face",
+         "body",
+         "hands",
+         "voice",
+         "environment",
+         "colour"
+        ]
+       },
+       "peak_s": {
+        "type": "number"
+       },
+       "cause": {
+        "type": "string"
+       },
+       "character": {
+        "type": "string"
+       }
+      },
+      "description": "R-360, R-373, R-374."
+     },
+     "emotion_track": {
+      "type": "object",
+      "description": ">= 6 of 9 channels, >= 4 non-face (R-361). Camera is NOT a channel: it lives in camera_plan (serves_emotion).",
+      "properties": {
+       "eyes": {
+        "type": "object",
+        "required": [
+         "gaze_target",
+         "darts_per_s",
+         "blink_per_min",
+         "onset_s"
+        ],
+        "properties": {
+         "gaze_target": {
+          "type": "string"
+         },
+         "darts_per_s": {
+          "type": "number"
+         },
+         "blink_per_min": {
+          "type": "array",
+          "items": {
+           "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+         },
+         "onset_s": {
+          "type": "number"
+         },
+         "blink_events": {
+          "type": "array"
+         },
+         "lids": {
+          "type": "string"
+         },
+         "iris": {
+          "type": "string"
+         }
+        }
+       },
+       "face": {
+        "type": "object",
+        "required": [
+         "aus",
+         "onset_s"
+        ],
+        "properties": {
+         "aus": {
+          "type": "object"
+         },
+         "onset_s": {
+          "type": "number"
+         },
+         "asymmetry": {
+          "type": "number"
+         }
+        }
+       },
+       "body": {
+        "type": "object",
+        "required": [
+         "effort",
+         "posture",
+         "onset_s"
+        ],
+        "properties": {
+         "effort": {
+          "type": "object"
+         },
+         "posture": {
+          "type": "string"
+         },
+         "onset_s": {
+          "type": "number"
+         }
+        }
+       },
+       "voice": {
+        "type": "object",
+        "required": [
+         "pace",
+         "pitch_st",
+         "energy",
+         "style_text"
+        ],
+        "properties": {
+         "pace": {
+          "type": "string"
+         },
+         "pitch_st": {
+          "type": "number"
+         },
+         "energy": {
+          "type": "string"
+         },
+         "style_text": {
+          "type": "string"
+         }
+        }
+       },
+       "action": {
+        "type": "object",
+        "required": [
+         "from_emotion",
+         "outcome"
+        ],
+        "properties": {
+         "from_emotion": {
+          "type": "string"
+         },
+         "outcome": {
+          "type": "string"
+         },
+         "obstacle": {
+          "type": "string"
+         }
+        }
+       },
+       "environment": {
+        "type": "object",
+        "required": [
+         "response",
+         "interaction_ref"
+        ],
+        "properties": {
+         "response": {
+          "type": "string"
+         },
+         "interaction_ref": {
+          "type": "string"
+         }
+        }
+       },
+       "colour": {
+        "type": "object",
+        "required": [
+         "hue_family",
+         "sat",
+         "value"
+        ],
+        "properties": {
+         "hue_family": {
+          "type": "string"
+         },
+         "sat": {
+          "type": "string"
+         },
+         "value": {
+          "type": "string"
+         },
+         "target": {
+          "type": "object",
+          "required": [],
+          "properties": {
+           "hue_deg": {
+            "type": "number"
+           },
+           "sat": {
+            "type": "number"
+           },
+           "value": {
+            "type": "number"
+           }
+          },
+          "description": "Optional numbers the render check compares (R-370)."
+         }
+        }
+       },
+       "sfx": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "at_s",
+          "what"
+         ],
+         "properties": {
+          "at_s": {
+           "type": "number"
+          },
+          "what": {
+           "type": "string"
+          }
+         }
+        }
+       },
+       "vfx": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "at_s",
+          "what"
+         ],
+         "properties": {
+          "at_s": {
+           "type": "number"
+          },
+          "what": {
+           "type": "string"
+          },
+          "box": {
+           "type": "object",
+           "required": [
+            "x",
+            "y",
+            "w",
+            "h"
+           ],
+           "properties": {
+            "x": {
+             "type": "number"
+            },
+            "y": {
+             "type": "number"
+            },
+            "w": {
+             "type": "number"
+            },
+            "h": {
+             "type": "number"
+            }
+           },
+           "description": "px at 1080x1920"
+          }
+         }
+        },
+        "maxItems": 1
+       }
+      }
+     },
+     "emotion_change": {
+      "type": "object",
+      "required": [
+       "from",
+       "to",
+       "bridge",
+       "frames"
+      ],
+      "properties": {
+       "from": {
+        "type": "string"
+       },
+       "to": {
+        "type": "string"
+       },
+       "bridge": {
+        "type": "string"
+       },
+       "frames": {
+        "type": "integer",
+        "minimum": 6,
+        "maximum": 24
+       }
+      },
+      "description": "On the later beat of a pair with different emotions (R-378)."
+     },
+     "reflex": {
+      "type": "boolean",
+      "description": "Startle: body may arrive before the eyes (R-362)."
+     },
+     "actors": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Actor ids on screen in this beat (default: all of actors[])."
+     },
+     "depth_z": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "number"
+      },
+      "description": "Per-beat override of actors[].depth_z (an actor walks nearer or farther)."
+     },
+     "draw_order": {
+      "type": "array",
+      "description": "Who is in front, per time window, back to front. Required when the beat shows 2+ actors. A token is an actor id ('partner' = body then arms) or 'id:body' / 'id:arms' to split (her arm in front of his body). Windows tile the beat; a change or a split needs a why (>= 12 chars). Must follow depth_z (farther first) unless split.",
+      "items": {
+       "type": "object",
+       "required": [
+        "order"
+       ],
+       "properties": {
+        "t0": {
+         "type": "number"
+        },
+        "t1": {
+         "type": "number"
+        },
+        "order": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "why": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "actor_emotions": {
+      "type": "object",
+      "description": "One emotion block per actor when the beat shows 2+ actors: {<actor id>: {emotion, emotion_track, emotion_change?}}, each checked by the EMO-* checks on its own (named 'actor <id>'). A one-character beat keeps beat.emotion / beat.emotion_track.",
+      "additionalProperties": {
+       "type": "object",
+       "required": [
+        "emotion",
+        "emotion_track"
+       ],
+       "properties": {
+        "emotion": {
+         "type": "object"
+        },
+        "emotion_track": {
+         "type": "object"
+        },
+        "emotion_change": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "actors_apart_because": {
+      "type": "string",
+      "description": "A beat that shows 2+ actors with no actor_interactions says why (they never touch, on purpose)."
+     }
+    }
+   }
+  },
+  "canvas": {
+   "type": "string",
+   "description": "WxH, default 1080x1920"
+  },
+  "physics_profiles": {
+   "type": "object",
+   "description": "Optional inline physics profiles (same shape as bible/physics/<id>.json). Lookup order: built-in _human-default, this map, bible/physics/<id>.json.",
+   "additionalProperties": {
+    "type": "object"
+   }
+  },
+  "props": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "physics_profile",
+     "mass_class"
+    ],
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "physics_profile": {
+      "type": "string"
+     },
+     "mass_class": {
+      "enum": [
+       "feather",
+       "light",
+       "medium",
+       "heavy",
+       "immovable"
+      ]
+     }
+    }
+   },
+   "description": "Moving props (R-300, R-315)."
+  },
+  "transitions": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "from_beat",
+     "to_beat",
+     "type",
+     "frames",
+     "cause",
+     "style_entry",
+     "rate_change"
+    ],
+    "properties": {
+     "from_beat": {
+      "type": "string"
+     },
+     "to_beat": {
+      "type": "string"
+     },
+     "type": {
+      "enum": [
+       "match-cut",
+       "action-cut",
+       "impact-cover",
+       "carrier-bleed",
+       "whip-smear",
+       "contour-wipe",
+       "fade-through-light"
+      ]
+     },
+     "frames": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 24
+     },
+     "cause": {
+      "type": "string",
+      "description": "On-screen event in the 6 frames before; >= 8 chars (R-323)."
+     },
+     "carrier": {
+      "type": "string"
+     },
+     "edge_follows": {
+      "type": "string",
+      "description": "Wipe edge follows this contour (R-324)."
+     },
+     "style_entry": {
+      "enum": [
+       "under-cover",
+       "bleed-6-12",
+       "none-same-style"
+      ]
+     },
+     "style_entry_frames": {
+      "type": "integer",
+      "minimum": 0
+     },
+     "rate_change": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "part",
+        "from",
+        "to",
+        "ramp"
+       ],
+       "properties": {
+        "part": {
+         "type": "string"
+        },
+        "from": {
+         "enum": [
+          "ones",
+          "twos",
+          "threes",
+          "fours"
+         ]
+        },
+        "to": {
+         "enum": [
+          "ones",
+          "twos",
+          "threes",
+          "fours"
+         ]
+        },
+        "ramp": {
+         "enum": [
+          "hold-sequence-2-2-1-1-1",
+          "under-cover",
+          "none"
+         ]
+        }
+       }
+      }
+     },
+     "audio_lead_frames": {
+      "type": "integer",
+      "minimum": 4,
+      "maximum": 12
+     },
+     "audio_lead_none_because": {
+      "type": "string"
+     }
+    }
+   },
+   "description": "One entry per beat boundary (n beats -> n-1). Style, frame rate and camera never change without one (R-320..R-327)."
+  },
+  "camera_plan": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "shot",
+     "beat",
+     "size",
+     "angle",
+     "lens_mm",
+     "move",
+     "start_frame_desc",
+     "end_frame_desc",
+     "dur_s",
+     "why"
+    ],
+    "properties": {
+     "shot": {
+      "type": "string"
+     },
+     "beat": {
+      "type": "string"
+     },
+     "size": {
+      "enum": [
+       "ECU",
+       "CU",
+       "MCU",
+       "MS",
+       "MWS",
+       "WS",
+       "EWS"
+      ]
+     },
+     "angle": {
+      "enum": [
+       "eye",
+       "low",
+       "high",
+       "overhead",
+       "dutch"
+      ]
+     },
+     "dutch_deg": {
+      "type": "number"
+     },
+     "lens_mm": {
+      "enum": [
+       24,
+       35,
+       50,
+       85,
+       135
+      ]
+     },
+     "move": {
+      "enum": [
+       "locked",
+       "push",
+       "pull",
+       "track",
+       "pan",
+       "tilt",
+       "crane",
+       "handheld",
+       "whip"
+      ]
+     },
+     "start_frame_desc": {
+      "type": "string"
+     },
+     "end_frame_desc": {
+      "type": "string"
+     },
+     "dur_s": {
+      "type": "number"
+     },
+     "why": {
+      "type": "string",
+      "description": "Emotion or information, >= 12 chars (R-330)."
+     },
+     "serves_emotion": {
+      "type": "string",
+      "description": "Required for a moving shot: the beat's emotion (R-377)."
+     },
+     "thumbnail": {
+      "type": "string"
+     },
+     "line_180": {
+      "type": "string"
+     },
+     "safe_boxes": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "id",
+        "x",
+        "y",
+        "w",
+        "h"
+       ],
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "x": {
+         "type": "number"
+        },
+        "y": {
+         "type": "number"
+        },
+        "w": {
+         "type": "number"
+        },
+        "h": {
+         "type": "number"
+        }
+       }
+      }
+     }
+    }
+   },
+   "description": "Designed before drawing; shot durations of a beat sum to its length (R-328..R-333).",
+   "minItems": 1
+  },
+  "actors": {
+   "type": "array",
+   "description": "Several characters in one shot (tools/render/characters/README.md, 'Several characters in one shot'). One entry per character INSTANCE; each id has a characters[] rig entry with the same id. Omit for a one-character shot. Checks ACTOR-DECLARED.",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "module",
+     "depth_z",
+     "layer",
+     "catalogue_refs"
+    ],
+    "properties": {
+     "id": {
+      "type": "string",
+      "description": "Instance id; the key of this actor in rig-trace characters{}, in draw orders, interactions and masks/<kind>/<id>/."
+     },
+     "module": {
+      "type": "string",
+      "description": "tools/render/characters/<module>.js. Two instances may share a module."
+     },
+     "depth_z": {
+      "type": "number",
+      "description": "Metres from the camera plane (larger = farther). Draw order must follow it (ACTOR-ORDER, ACTOR-OCCLUSION)."
+     },
+     "layer": {
+      "type": "integer",
+      "description": "Stacking slot when two actors have the same depth_z (higher is drawn later)."
+     },
+     "catalogue_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "string"
+      },
+      "description": "id@version entries of this actor's character catalogue; each starts with '<module>/'."
+     }
+    }
+   }
+  },
+  "actor_interactions": {
+   "type": "array",
+   "description": "Touches between actors, checked on the trace (ACTOR-CONTACT, HANDOVER). A beat that shows two or more actors needs at least one, or beat.actors_apart_because.",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "kind",
+     "beat",
+     "t0",
+     "t1",
+     "why"
+    ],
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "kind": {
+      "enum": [
+       "contact",
+       "handover",
+       "apart"
+      ],
+      "description": "apart = a declared NO-TOUCH (CLAUDE.md, the owner 2026-10-23): a: {actor, hands: [L, R]}, b: {actor, hands}, min_gap_px; ACTOR-CONTACT checks the drawn hand outlines (trace hand_outline_px) stay that far apart on every frame both actors are present"
+     },
+     "beat": {
+      "type": "string"
+     },
+     "t0": {
+      "type": "number"
+     },
+     "t1": {
+      "type": "number",
+      "description": "Window [t0, t1) in seconds, inside the beat; checked on every frame of it."
+     },
+     "why": {
+      "type": "string",
+      "description": ">= 12 chars: the story reason for the touch."
+     },
+     "a": {
+      "type": "object",
+      "description": "contact: {actor, point}; point = a name in that actor's trace contact_points or anchors (hand_L, hand_R, wrist_L, ...).",
+      "properties": {
+       "actor": {
+        "type": "string"
+       },
+       "point": {
+        "type": "string"
+       }
+      }
+     },
+     "b": {
+      "type": "object",
+      "description": "contact: {actor, point} (hand to hand, hand to body) or {prop, held_by:{actor, hand}} (a hand to an object the OTHER actor holds; the prop must be parented to that hand on every frame).",
+      "properties": {
+       "actor": {
+        "type": "string"
+       },
+       "point": {
+        "type": "string"
+       },
+       "prop": {
+        "type": "string"
+       },
+       "held_by": {
+        "type": "object",
+        "properties": {
+         "actor": {
+          "type": "string"
+         },
+         "hand": {
+          "enum": [
+           "L",
+           "R"
+          ]
+         }
+        }
+       }
+      }
+     },
+     "tol_px": {
+      "type": "number",
+      "description": "contact: canvas px between the two points on every frame (default 8, at most 16)."
+     },
+     "prop": {
+      "type": "string",
+      "description": "handover: id in props[]."
+     },
+     "giver": {
+      "type": "object",
+      "properties": {
+       "actor": {
+        "type": "string"
+       },
+       "hand": {
+        "enum": [
+         "L",
+         "R"
+        ]
+       }
+      }
+     },
+     "receiver": {
+      "type": "object",
+      "properties": {
+       "actor": {
+        "type": "string"
+       },
+       "hand": {
+        "enum": [
+         "L",
+         "R"
+        ]
+       }
+      }
+     },
+     "handoff_frame": {
+      "type": "integer",
+      "description": "handover: the first frame the prop's parent is the receiver's hand; before it the giver's hand. Strictly inside t0..t1 in frames."
+     },
+     "both_hands_frames": {
+      "type": "integer",
+      "description": "handover: both hands on the prop (gap <= 8 px) for this many frames before handoff_frame (default and minimum 3)."
+     },
+     "max_jump_px": {
+      "type": "number",
+      "description": "handover: largest prop travel between handoff_frame - 1 and handoff_frame (default 16)."
+     }
+    }
+   }
+  }
+ }
+}

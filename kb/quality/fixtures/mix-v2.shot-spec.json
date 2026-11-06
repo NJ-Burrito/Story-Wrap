@@ -1,0 +1,199 @@
+{
+ "episode": "Process proof: Mix v2, the series, the bag with her name (9 s, 9:16, original design)",
+ "fps": 24,
+ "canvas": "1080x1920",
+ "world": "Port Monsoon office under the harbour: coral-stone wall, numbered wooden shelves to the ceiling, an oil lamp on a chain, a brass wind chute where lost things drop in with the monsoon.",
+ "characters": [
+  {
+   "id": "hero",
+   "note": "19, small upright clerk in an oversized coat bristling with paper tags (pitch silhouette: jagged star). Behind the counter, seen waist up.",
+   "parts": [
+    {"name": "pelvis", "pivot": "root", "own_curve": true},
+    {"name": "torso", "pivot": "pelvis", "own_curve": true},
+    {"name": "head", "pivot": "neck", "own_curve": true, "follows": "torso", "lag_frames": 2},
+    {"name": "hair-strands", "pivot": "scalp", "own_curve": true, "follows": "head", "lag_frames": 3},
+    {"name": "headscarf-tail", "pivot": "nape", "own_curve": true, "follows": "head", "lag_frames": 4},
+    {"name": "brows", "pivot": "brow-line", "own_curve": true},
+    {"name": "eyes", "pivot": "eye-centre", "own_curve": true},
+    {"name": "mouth", "pivot": "mouth-centre", "own_curve": true},
+    {"name": "upper-arm-L", "pivot": "shoulder-L", "own_curve": true, "follows": "torso", "lag_frames": 1},
+    {"name": "forearm-L", "pivot": "elbow-L", "own_curve": true, "follows": "upper-arm-L", "lag_frames": 2},
+    {"name": "hand-L-pen", "pivot": "wrist-L", "own_curve": true, "follows": "forearm-L", "lag_frames": 2},
+    {"name": "upper-arm-R", "pivot": "shoulder-R", "own_curve": true, "follows": "torso", "lag_frames": 1},
+    {"name": "forearm-R", "pivot": "elbow-R", "own_curve": true, "follows": "upper-arm-R", "lag_frames": 2},
+    {"name": "hand-R", "pivot": "wrist-R", "own_curve": true, "follows": "forearm-R", "lag_frames": 2},
+    {"name": "coat-hem", "pivot": "waist", "own_curve": true, "follows": "pelvis", "lag_frames": 4},
+    {"name": "coat-tags", "pivot": "pin-on-coat", "own_curve": true, "follows": "torso", "lag_frames": 3}
+   ]
+  }
+ ],
+ "beats": [
+  {
+   "id": "b1-the-office-breathes",
+   "start": 0, "end": 3,
+   "treatment": "A",
+   "treatment_reason": "Quiet set-up and world: clear line and real depth let the eye read the shelves, the lamp and Hero's habit (tagging a jar). Calm = smooth ones, no halftone.",
+   "depth_planes": [
+    {"id": "back-wall-coral", "content": "coral-stone wall, numbered shelf ends, harbour grate with water light", "parallax": 0.2},
+    {"id": "far-shelves", "content": "rows of lost objects, tags fluttering in the grate draught", "parallax": 0.4},
+    {"id": "lamp-and-chute", "content": "oil lamp on chain, brass wind chute", "parallax": 0.62},
+    {"id": "hero-counter", "content": "Hero and the counter top, jar, ledger", "parallax": 1.0},
+    {"id": "fg-shelf-edge", "content": "near shelf post with hanging tags and a bottle", "parallax": 1.45},
+    {"id": "fg-dust", "content": "dust motes lit by the lamp", "parallax": 1.9}
+   ],
+   "light": {
+    "key": {"dir": "top-left, swinging +-14 deg", "color": "#ffb25e", "source": "oil lamp"},
+    "fill": {"dir": "right-low", "color": "#3b6f8f", "source": "harbour water through the grate"},
+    "rim": {"dir": "opposite the lamp, follows it", "color": "#ffd99a", "source": "lamp bounce"}
+   },
+   "cast_shadows": [
+    {"caster": "shelf objects", "receiver": "back wall (moves with lamp swing)"},
+    {"caster": "hero", "receiver": "shelves behind her"},
+    {"caster": "jar", "receiver": "counter top"}
+   ],
+   "interactions": [
+    {"cause": "monsoon draught through grate", "effect": "lamp sways on chain", "kind": "wind"},
+    {"cause": "lamp sway", "effect": "light pool and every cast shadow slide across the shelves", "kind": "light-spill"},
+    {"cause": "hero pen hand", "effect": "tag on jar swings and settles", "kind": "contact"}
+   ],
+   "actions": [
+    {"part": "hand-L-pen", "anticipation_frames": 4, "overshoot": true},
+    {"part": "head", "anticipation_frames": 3, "overshoot": true}
+   ],
+   "elements": [
+    {"id": "back-wall-coral", "static_s": 0.0},
+    {"id": "far-shelves", "static_s": 0.0},
+    {"id": "lamp", "static_s": 0.0},
+    {"id": "hero", "static_s": 0.0},
+    {"id": "fg-shelf-edge", "static_s": 0.0},
+    {"id": "dust", "static_s": 0.0}
+   ],
+   "holds": [],
+   "camera_move_pct": 9
+  },
+  {
+   "id": "b2-the-drop",
+   "start": 3, "end": 5,
+   "treatment": "B",
+   "treatment_reason": "Action and shock: the bag drops out of the wind chute and slams the counter. Halftone shading, offset print and mixed rates (Hero on twos, debris and camera shake on ones) make the impact a jolt in the world.",
+   "depth_planes": [
+    {"id": "back-wall-coral", "parallax": 0.2},
+    {"id": "far-shelves", "parallax": 0.4},
+    {"id": "lamp-and-chute", "parallax": 0.62},
+    {"id": "hero-counter-bag", "parallax": 1.0},
+    {"id": "fg-shelf-edge", "parallax": 1.45},
+    {"id": "fg-dust-debris", "parallax": 1.9}
+   ],
+   "light": {
+    "key": {"dir": "top-left, jolted to +-26 deg by the impact", "color": "#ffc36b", "source": "oil lamp"},
+    "fill": {"dir": "right-low", "color": "#2c4f7a", "source": "harbour water"},
+    "rim": {"dir": "opposite the lamp", "color": "#ff7a4a", "source": "lamp flare on impact"}
+   },
+   "cast_shadows": [
+    {"caster": "bag", "receiver": "counter top and Hero's coat"},
+    {"caster": "shelf objects", "receiver": "back wall (whipping with the lamp)"},
+    {"caster": "hero", "receiver": "shelves"}
+   ],
+   "interactions": [
+    {"cause": "bag lands on counter", "effect": "ledger and jar jump, dust burst", "kind": "splash-dust"},
+    {"cause": "counter slam", "effect": "drawer below the shelves jolts open, its tags swing", "kind": "displace"},
+    {"cause": "impact shake", "effect": "lamp swings hard, shadows whip across the wall", "kind": "light-spill"}
+   ],
+   "actions": [
+    {"part": "torso", "anticipation_frames": 3, "overshoot": true},
+    {"part": "upper-arm-R", "no_anticipation_because": "startle reflex: the flinch comes after the impact, not before"}
+   ],
+   "elements": [
+    {"id": "back-wall-coral", "static_s": 0.0},
+    {"id": "far-shelves", "static_s": 0.0},
+    {"id": "lamp", "static_s": 0.0},
+    {"id": "hero", "static_s": 0.17},
+    {"id": "bag", "static_s": 0.0},
+    {"id": "dust", "static_s": 0.0}
+   ],
+   "holds": [
+    {"element": "hero", "start": 3.42, "end": 3.58, "why": "impact freeze on the slam frame; lamp, dust and camera shake keep moving"}
+   ],
+   "camera_move_pct": 7
+  },
+  {
+   "id": "b3-her-name",
+   "start": 5, "end": 7,
+   "treatment": "A+B",
+   "treatment_reason": "Plot turn: the tag reads her own name. The world stays clear-line (A); only the bag and its tag go halftone and on threes (B), so the uncanny object reads as from another time.",
+   "depth_planes": [
+    {"id": "back-wall-coral", "parallax": 0.2},
+    {"id": "far-shelves", "parallax": 0.4},
+    {"id": "lamp-and-chute", "parallax": 0.62},
+    {"id": "hero-counter-bag", "parallax": 1.0},
+    {"id": "fg-shelf-edge", "parallax": 1.45},
+    {"id": "fg-dust", "parallax": 1.9}
+   ],
+   "light": {
+    "key": {"dir": "top, settling swing", "color": "#ffa04a", "source": "oil lamp, flame guttering"},
+    "fill": {"dir": "right-low", "color": "#1f5f6e", "source": "harbour water"},
+    "rim": {"dir": "behind the bag", "color": "#7fe0ff", "source": "cold glow from the bag tag"}
+   },
+   "cast_shadows": [
+    {"caster": "bag tag", "receiver": "bag body"},
+    {"caster": "hero head", "receiver": "back shelves"},
+    {"caster": "bag", "receiver": "counter top"}
+   ],
+   "interactions": [
+    {"cause": "tag glow", "effect": "cold light spills onto Hero's face and hands", "kind": "light-spill"},
+    {"cause": "hero leans in", "effect": "her shadow covers the shelf numbers", "kind": "occlude"}
+   ],
+   "actions": [
+    {"part": "torso", "anticipation_frames": 4, "overshoot": true},
+    {"part": "brows", "anticipation_frames": 3}
+   ],
+   "elements": [
+    {"id": "back-wall-coral", "static_s": 0.0},
+    {"id": "hero", "static_s": 0.0},
+    {"id": "bag", "static_s": 0.13},
+    {"id": "lamp", "static_s": 0.0}
+   ],
+   "holds": [],
+   "camera_move_pct": 8
+  },
+  {
+   "id": "b4-the-grab",
+   "start": 7, "end": 9,
+   "treatment": "A",
+   "treatment_reason": "Back to character: she takes the tag in her hand (her own habit turned on herself). Clear line and smooth ones for a deliberate gesture; the light turns cold as the mystery starts.",
+   "depth_planes": [
+    {"id": "back-wall-coral", "parallax": 0.2},
+    {"id": "far-shelves", "parallax": 0.4},
+    {"id": "lamp-and-chute", "parallax": 0.62},
+    {"id": "hero-counter-bag", "parallax": 1.0},
+    {"id": "fg-shelf-edge", "parallax": 1.45},
+    {"id": "fg-dust", "parallax": 1.9}
+   ],
+   "light": {
+    "key": {"dir": "top-left", "color": "#ff9a52", "source": "oil lamp, dimming"},
+    "fill": {"dir": "front-low", "color": "#5fc8e8", "source": "tag glow"},
+    "rim": {"dir": "back-right", "color": "#bfefff", "source": "tag glow"}
+   },
+   "cast_shadows": [
+    {"caster": "hero hand", "receiver": "bag"},
+    {"caster": "hero", "receiver": "back shelves"}
+   ],
+   "interactions": [
+    {"cause": "hero hand", "effect": "tag lifts and its string tightens", "kind": "grab"},
+    {"cause": "tag lifted", "effect": "its glow moves with it and the wall shadows shift", "kind": "cast-shadow"}
+   ],
+   "actions": [
+    {"part": "forearm-R", "anticipation_frames": 4, "overshoot": true},
+    {"part": "hand-R", "anticipation_frames": 3, "overshoot": true}
+   ],
+   "elements": [
+    {"id": "back-wall-coral", "static_s": 0.0},
+    {"id": "hero", "static_s": 0.0},
+    {"id": "bag", "static_s": 0.0},
+    {"id": "lamp", "static_s": 0.0}
+   ],
+   "holds": [],
+   "camera_move_pct": 7
+  }
+ ]
+}

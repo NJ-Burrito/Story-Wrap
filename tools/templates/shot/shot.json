@@ -1,0 +1,111 @@
+{
+ "id": "SHOT_ID",
+ "title": "the series: the bag with her name (template shot = Mix v5 data)",
+ "fps": 24,
+ "duration_s": 9,
+ "canvas": [
+  1080,
+  1920
+ ],
+ "character": "hero",
+ "world": "world-a",
+ "catalogue_url": "/catalogue/characters/hero/",
+ "catalogue": {
+  "model": "v1/model/mannequin.json",
+  "face": "v2/face/face.json",
+  "hand_model": "v3/hands/hand-model.json",
+  "writing": "v3/writing/khurz-asfar.json",
+  "props": {
+   "card": "v3/props/card.json",
+   "tag": "v3/props/bag-tag.json"
+  },
+  "grip_dir": "v3/hands/",
+  "grips": [
+   "tripod-pen-L",
+   "press-card-R",
+   "startle-open-R",
+   "flat-support-R",
+   "pinch-tag-R"
+  ],
+  "expression_dir": "v1/expressions/",
+  "expressions": [
+   "calm-task",
+   "surprise-startle",
+   "dread-name",
+   "suspicion-read"
+  ]
+ },
+ "uses": {
+  "refs": [
+   "hero@1.0",
+   "hero/physics/hero-v1@1.0",
+   "hero/model@2.0",
+   "hero/face@2.0",
+   "hero/hand-model@3.0",
+   "hero/hand/tripod-pen-L@3.0",
+   "hero/hand/press-card-R@3.0",
+   "hero/hand/startle-open-R@3.0",
+   "hero/hand/flat-support-R@3.0",
+   "hero/hand/pinch-tag-R@3.0",
+   "hero/writing/khurz-asfar@3.0",
+   "hero/prop/card@3.0",
+   "hero/prop/bag-tag@3.0",
+   "hero/pose/write-card@3.0",
+   "hero/pose/startle-back@2.0",
+   "hero/pose/lean-dread@2.0",
+   "hero/pose/lift-tag-read@3.0",
+   "hero/expr/calm-task@1.0",
+   "hero/expr/surprise-startle@1.0",
+   "hero/expr/dread-name@1.0",
+   "hero/expr/suspicion-read@1.0",
+   "hero/camera/ms-eye-flat@2.0",
+   "hero/camera/top-pov-insert@3.0",
+   "hero/camera/mcu-eye-long@2.0",
+   "hero/camera/pov-tag-cu@3.0"
+  ]
+ },
+ "new": [],
+ "writing_t0": 0.75,
+ "cuts": [
+  18,
+  72,
+  111,
+  138,
+  165
+ ],
+ "smears": [
+  75
+ ],
+ "fonts": [
+  "700 40px thmanyahseriftext",
+  "700 20px thmanyahsans",
+  "500 16px thmanyahsans"
+ ],
+ "scene_files": [
+  "scene/main.js"
+ ],
+ "library": [
+  "core.js",
+  "geom2d.js",
+  "worlds/world-a.js",
+  "face.js",
+  "hands.js",
+  "write.js",
+  "characters/hero.js",
+  "insert.js",
+  "@scene",
+  "trace.js",
+  "bootstrap.js"
+ ],
+ "record": {
+  "fps": 24,
+  "codec": "h264_nvenc",
+  "size": "1080x1920"
+ },
+ "review": {
+  "hands_every": 3,
+  "faces_every": 6,
+  "props_every": 6,
+  "frames_every": 12
+ }
+}

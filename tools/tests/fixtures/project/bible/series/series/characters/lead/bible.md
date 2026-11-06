@@ -1,0 +1,3 @@
+- name: Lead (neutral fixture)
+- voice_signature_words: «بولي بولي» (pole pole, little by little)
+- next: x

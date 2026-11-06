@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "_comment": "The healing setting (owner, 2026-10-23: no more notes from me). Read by tools/heal.py. Loop: gate -> critic -> classify -> fix -> rerun -> learn. See pipelines/HEAL.md.",
+  "enabled": true,
+  "max_heal_rounds": {
+    "shot": 3,
+    "episode": 3,
+    "artbook": 3,
+    "writing": 2,
+    "voice": 1,
+    "default": 3
+  },
+  "budget": {
+    "max_minutes_per_build": 180,
+    "max_tokens_per_build": 4000000,
+    "max_fix_dispatches_per_build": 9,
+    "_comment": "Tokens are summed from the --tokens each round records (the Lead copies them from the agent receipts). Minutes run from the first heal snapshot."
+  },
+  "critic": {
+    "model": "sonnet",
+    "effort": "high",
+    "scale": 10,
+    "min_score": 9,
+    "checklist": "kb/quality/critic-checklist.md",
+    "require_all_gates_pass": true,
+    "blocking_severities": [
+      "S1",
+      "S2",
+      "S3"
+    ],
+    "_comment": "the owner's scale: Mix v2 = 6, art book first pass = 8, Mix v5 and shot 2 = 10. The critic cannot score higher than the rubric allows: heal.py recomputes the score from the faults."
+  },
+  "fixer": {
+    "creative_model": "sonnet",
+    "tool_model": "sonnet",
+    "helper_model": "sonnet",
+    "_comment": "Sonnet 5.5 only for every agent (owner, 2026-10-23): no Opus, no Haiku. The crew lives in .claude/agents/sw-*.md. Creative and tool faults differ by brief, not by model."
+  },
+  "on_budget_exhausted": {
+    "action": "stop_and_report",
+    "write": "heal/STOPPED.md",
+    "report_remaining_faults": true,
+    "loosen_gates": false,
+    "show_owner_unhealed_as_done": false,
+    "_comment": "When rounds or budget run out: stop, list every remaining fault with its class and evidence, mark the build BLOCKED. Never loosen a gate. Never show the owner unhealed work as done."
+  },
+  "forbidden_fix_kinds": [
+    "loosen_threshold",
+    "edit_trace",
+    "hide_from_camera",
+    "skip_check",
+    "widen_exemption",
+    "edit_approved_version",
+    "hand_edit_output"
+  ],
+  "protected_paths": {
+    "frozen": [
+      "tools/qg_checks.py",
+      "tools/quality_gate.py",
+      "pipelines/heal.json",
+      "kb/quality/critic-checklist.md",
+      "kb/quality/shot-spec.schema.json",
+      "kb/quality/rig-trace.schema.json",
+      "kb/quality/shotlist.schema.json",
+      "kb/quality/viseme-track.schema.json"
+    ],
+    "frozen_globs": [
+      "reference/**"
+    ],
+    "regenerated_only": [
+      "rig-trace.json",
+      "out/rig-trace.json",
+      "out/masks/**",
+      "masks/**",
+      "gate/*.json",
+      "gate/*.out"
+    ],
+    "_comment": "frozen = no heal round may change it (a threshold change is a Lead-merged proposal under R-212 with a measured sample, never part of a heal). regenerated_only = traces, masks and gate outputs may change only because their stage re-ran (STATE.json says so), never by hand."
+  },
+  "owner_ready": {
+    "min_critic_score": 9,
+    "all_gates_pass": true,
+    "no_open_faults": true,
+    "_comment": "Only then does the Lead add the preview tab and open it."
+  }
+}

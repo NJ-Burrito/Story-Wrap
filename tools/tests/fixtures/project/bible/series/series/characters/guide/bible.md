@@ -1,0 +1,3 @@
+- name: Guide (neutral fixture)
+- voice_signature_words: «أرّي» (arre, hey, oh: surprise); «تشالو» (chalo, let us go); «كاكا» (kaka, uncle)
+- next: x

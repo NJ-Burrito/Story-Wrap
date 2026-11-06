@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14262C"/>
+      <stop offset="1" stop-color="#091215"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.3" cy="0.25" r="0.65">
+      <stop offset="0" stop-color="#FFB547" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#FFB547" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="stripes" width="64" height="64" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+      <rect width="32" height="64" fill="#FFB547"/>
+    </pattern>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+  </defs>
+
+  <!-- panggung -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#glow)"/>
+
+  <!-- naskah: kertas di bawah papan klap -->
+  <rect x="112" y="232" width="288" height="180" rx="24" fill="#000000" opacity="0.35" filter="url(#soft)"/>
+  <rect x="112" y="228" width="288" height="180" rx="24" fill="#F3EEE4"/>
+  <rect x="146" y="276" width="176" height="14" rx="7" fill="#23343B"/>
+  <rect x="146" y="308" width="220" height="14" rx="7" fill="#23343B" opacity="0.55"/>
+  <!-- baris dialog -->
+  <rect x="146" y="340" width="148" height="14" rx="7" fill="#E8932F"/>
+  <rect x="146" y="372" width="196" height="14" rx="7" fill="#23343B" opacity="0.55"/>
+
+  <!-- batang klap bawah -->
+  <rect x="112" y="190" width="288" height="50" rx="14" fill="#10191D"/>
+  <rect x="112" y="190" width="288" height="50" rx="14" fill="url(#stripes)"/>
+
+  <!-- batang klap atas, terbuka -->
+  <g transform="rotate(-16 120 184)">
+    <rect x="112" y="132" width="288" height="50" rx="14" fill="#10191D"/>
+    <rect x="112" y="132" width="288" height="50" rx="14" fill="url(#stripes)"/>
+  </g>
+
+  <!-- engsel -->
+  <circle cx="126" cy="186" r="13" fill="#F3EEE4"/>
+  <circle cx="126" cy="186" r="5" fill="#10191D"/>
+</svg>

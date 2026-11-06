@@ -1,0 +1,32 @@
+{
+  "name": "bang-film",
+  "description": "Bang Film — an agent skill that designs AI live-action video and writes the prompts, without generating anything itself.",
+  "owner": {
+    "name": "Bang Tutorial"
+  },
+  "plugins": [
+    {
+      "name": "bang-film",
+      "source": "./",
+      "displayName": "Bang Film",
+      "description": "Microdrama series, short films and single scenes, planned through seven gates with three approvals: concept, cast and set bible, shot list, asset prompts and eleven-block video prompts ready to paste into any AI image and video model. A checker verifies locked blocks, timecodes, 4–30 second generations and banned words before handover.",
+      "version": "1.2.0",
+      "author": {
+        "name": "Bang Tutorial",
+        "url": "https://youtube.com/bangtutorial"
+      },
+      "homepage": "https://github.com/bangtutorial/bang-film",
+      "license": "MIT",
+      "keywords": [
+        "ai-video",
+        "microdrama",
+        "short-film",
+        "prompt-writing",
+        "shot-list",
+        "character-sheet",
+        "screenwriting",
+        "video-prompt"
+      ]
+    }
+  ]
+}

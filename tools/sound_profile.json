@@ -1,0 +1,679 @@
+{
+ "version": 1,
+ "date": "2026-10-26",
+ "owner": "tools/voice_master.py (chain owner); readers: voice.py, calm_mix.py, calm_compose.py, compose.py, audio_checks.py",
+ "why": "the owner 2026-10-26: every voice take goes through ONE fixed, deterministic mastering chain defined once. Every sound number lives here with its reason. Key names follow bible/sound/SOUND.md section 11 where they fit. A check threshold is never loosened to make a mix pass (R-441, R-442).",
+ "voice": {
+  "lufs_target": -19.0,
+  "lufs_target_why": "Per-take gated loudness, measured dual-mono at 48 kHz (the take centre-panned into stereo, calm_mix's convention). The value calm_mix.PRESETS['phone-first'].voice_target_lufs already used for E01C (research/sound-e01c.md: narrator and characters sit at one level); a mastered take arrives at it, so calm_mix's per-take level match is about 0 dB.",
+  "highpass_hz": 90,
+  "eq": [
+   [
+    220,
+    0.9,
+    -3.0
+   ],
+   [
+    3200,
+    0.8,
+    2.5
+   ]
+  ],
+  "deess_when_db": -17.0,
+  "deess": "deesser=i=0.45:m=0.5:f=0.5",
+  "comp": "acompressor=threshold=0.063:ratio=2.5:attack=8:release=160:knee=4:makeup=1",
+  "limit": 0.42,
+  "mix_chain_why": "highpass_hz, eq, deess_when_db, deess, comp: calm_mix's ffmpeg voice chain of 2026-10-25 (research/sound-e01c.md 'What was built'), unchanged. Since 2026-10-26 it runs at mix time ONLY on takes without a master record (takes voiced before the take chain existed, e.g. E01C), so an approved episode re-mixes exactly as it was. A mastered take skips it: the take chain below is the one chain. limit: the voice-bus lookahead limiter in calm_mix (0.42 linear = -7.5 dBFS), unchanged.",
+  "measure": {
+   "frame_s": 0.02,
+   "hop_s": 0.01,
+   "speech_below_p95_db": 30,
+   "pause_below_p95_db": 18,
+   "noise_min_frames": 20,
+   "pause": {
+    "pad_s": 0.02,
+    "pause_min_s": 0.2,
+    "why": "Which frames the expander may lower, and where the noise floor is read (the owner 2026-10-26: the expander pulled quiet voiced word endings down by about 10 dB; measured on the 33 proof takes, 28 E01C + 5 j03: it lowered frames the cleaner calls a sound of a word by up to 15.0 dB (E01C I01), more than 1 dB on 24 of 33 takes; now 0.0 dB on all 33). A frame is protected when voice_edges' own detector (the one trim_take and VOICE-EDGE-NOISE use, so the three agree on what is speech) calls it a sound of a word: loud, voiced, attached, fricative or voiced decay. Protection is widened by pad_s (0.02 s = 2 frames; the expander's own 30 ms hold and 5 ms lookahead already keep the gain open around any protected frame) and covers every gap between protected frames shorter than pause_min_s. pause_min_s 0.2 s = a pause between phrases, not a gap between words (a word gap in Arabic reading is 30 to 150 ms): a frame inside a phrase is never lowered. Only the rest is a true pause (a gap of 0.2 s or more with no sound in it, and the lead-in and tail outside the speech span), and the expander acts only there. The noise floor (noise_rel_db: the expander's trigger, in_spec, the VOICE-MASTER gate and the idempotence test) is read from the same frames, because a quiet frame next to a word is the word's own decay and the expander is not allowed to touch it; noise_all_rel_db keeps the old median of every quiet frame, for comparison. Measured with the same 33 takes (main checkout work/sound-chain/expander-proof/): TAKE-QUALITY and VOICE-MASTER failures and second-pass moves are the same takes as with the old expander (none added); the pause floor of the 10 takes that sat above the -48 dB skip line before the chain drops from a median of -45.95 to -49.5 dB (all 10 lower). Takes with fewer than noise_min_frames true-pause frames have no noise floor (None, as a take with no quiet frames always had). 0.0 s pad_s or a pause_min_s under 0.06 s would let the expander reach a word's soft decay again: raise them, never lower them, if a listener hears a thinned ending."
+   },
+   "ltas_n": 2048,
+   "ref_band_hz": [
+    700,
+    1800
+   ],
+   "mud_band_hz": [
+    200,
+    500
+   ],
+   "presence_band_hz": [
+    2000,
+    5000
+   ],
+   "sib_band_hz": [
+    5000,
+    9000
+   ],
+   "sib_ref_band_hz": [
+    200,
+    4000
+   ],
+   "tilt_range_hz": [
+    150,
+    6000
+   ],
+   "why": "Frames and speech are voice.py's (TRIM_WIN 20 ms, TRIM_HOP 10 ms, SPEECH_BELOW_PEAK_DB 30 under the p95 frame) and pause_rel is TAKE-QUALITY's (median of the frames 18 dB under p95 inside the speech span), so the chain, TAKEQ and VOICE-MASTER measure the same thing. Noise floor = median of the frames more than 30 dB under p95 (not speech by voice.py's own definition), reported only when there are at least 20 of them (200 ms): a take spoken without a real pause (E01C L05, 8 such frames) has no measurable noise floor and is not judged on one. Mud 200 to 500 Hz (the boxy band a phone turns to honk, sound-e01c.md 'Low-end mud') and presence 2 to 5 kHz (consonants) are read against 700 Hz to 1.8 kHz, a band neither EQ filter touches: measured against the whole speech band, a 3.2 dB mud cut on the deep narrator moved the ratio only 0.9 dB because the reference fell with it (2026-10-26 rehearsal). Sibilance is audio_checks.sibilance_index (5 to 9 kHz minus 200 Hz to 4 kHz on voiced blocks), the number calm_mix's -17 dB switch was set on. Takes are 24 kHz: every band sits under the 12 kHz Nyquist."
+  },
+  "contract": {
+   "zero_run_ms": 20,
+   "pad_zero_below": 3e-05,
+   "why": "zero_run_ms: TAKEQ's gate-gap length (a run of exact zeros >= 20 ms inside the speech is a gate chopping words); the chain may never add one. pad_zero_below (-90 dBFS, under 16-bit's last bit): where the input was exact digital silence (trim_take's lead and tail pads) the filter tails under this are written back as zero, so the pads stay clean and VOICE-TAIL's -60 dBFS floor holds."
+  },
+  "take_chain": {
+   "settle_lu": 0.1,
+   "level_passes": 4,
+   "in_spec_lu": 0.3,
+   "in_spec_tone_db": 1.5,
+   "idempotence_tolerance": {
+    "d_lufs": 0.3,
+    "d_true_peak_db": 0.5,
+    "d_noise_db": 2.0,
+    "d_sibilance_db": 1.0,
+    "d_octave_max_db": 1.0
+   },
+   "idempotence_why": "What a second pass over a mastered take may still move: 0.3 LU (well under the 1 LU a listener notices on a level change), 0.5 dB of true peak, 2 dB of noise floor (40+ dB under the voice), 1 dB of sibilance and 1 dB in any octave band (about a just-noticeable EQ change). Proof run 2026-10-26 (main checkout work/sound-chain/proof/proof.json, 28 E01C takes + 5 d2 narrator takes): 30 of 33 come out in spec and pass a second time untouched; the 3 that do not (E01C L07, L08, L17, character takes) still pass VOICE-MASTER but sit outside in_spec_tone_db after the 6 dB EQ limit, so a second pass would correct them again. Never loosened to pass.",
+   "why": "Runs once per new take in voice.py right after trim_take (STORYWRAP_VOICE_MASTER=0 or cmd_voice(master=False) turns it off for tests). Order: high-pass, pre-gain to the role level, compressor, corrective EQ, de-ess, de-noise, level, true-peak limiter (level and limiter up to 3 times). EQ, de-ess and de-noise sit AFTER the compressor because the rehearsal measured that compression moves all three: it raised the mud ratio by up to 1.4 dB (E01C L10), the sibilance by up to 2.7 dB (d2 L01 went from -17.5 to -14.8) and the noise floor by its own gain reduction. A take already in spec (in_spec: level within in_spec_lu, true peak under the ceiling, noise floor and sibilance inside VOICE-MASTER, mud and presence within in_spec_tone_db of the target) passes through untouched: that is what makes the chain idempotent. settle_lu: a further level pass is skipped once this close.",
+   "roles": {
+    "narrator": {
+     "highpass_hz": 70,
+     "highpass_order": 2,
+     "highpass_why": "Butterworth 12 dB/oct, causal. 70 Hz, not 90: the chosen narrator is the deep voice (work/voice-trial/narrator-deep, d2); a male fundamental reaches down to about 85 Hz and 90 Hz with 12 dB/oct would take 3 dB of it. Under 70 Hz a phone plays nothing (sound-e01c.md: phone simulation is a band-pass from about 300 Hz).",
+     "denoise": {
+      "open_below_p95_db": 24,
+      "knee_db": 6,
+      "target_noise_rel_db": -50.0,
+      "skip_if_noise_rel_at_or_below_db": -48.0,
+      "max_range_db": 15.0,
+      "lookahead_ms": 5,
+      "hold_ms": 30,
+      "smooth_ms": 20,
+      "iterations": 3
+     },
+     "denoise_why": "Downward expander on the noise between words, never a gate to zero (the gain floor is the range used). Frames more than 24 dB under the loud part are lowered, fully from 30 dB under (a 6 dB knee), with 5 ms lookahead and 30 ms hold so soft onsets and word endings stay open. target -50 dB under the voice, skip at or under -48: measured E01C and d2 floors are -33 to -53 before the chain; 15 dB of range at most (shared over up to 3 passes, since the hold keeps the edges of each gap open and one pass reaches only part of its range) brings every approved take to -48 or lower without making breaths vanish.",
+     "eq": {
+      "mud": {
+       "hz": 315,
+       "q": 0.9,
+       "target_rel_db": 3.0,
+       "max_cut_db": 6.0
+      },
+      "presence": {
+       "hz": 3150,
+       "q": 0.75,
+       "target_rel_db": -12.0,
+       "max_boost_db": 6.0
+      },
+      "dead_band_db": 1.0,
+      "iterations": 3
+     },
+     "eq_why": "Corrective, toward a tonal target, never the other way: mud only cut (at most 6 dB), presence only lifted (at most 6 dB), peaking filters at the geometric centre of each band (315 Hz Q 0.9, 3.15 kHz Q 0.75), gains solved in 3 refinements, nothing done inside a 1 dB dead band. Narrator targets: mud +3.0 dB, presence -12.0 dB re 0.7 to 1.8 kHz. Measured before the chain: the chosen deep narrator (d2) has mud +3.6 median (-0.2 to +6.3) and presence -13.4 (-16.2 to -10.7); the approved E01C narrator +0.1 and -10.4. So d2's chest stays (only his two boxiest takes are cut, 2 to 3 dB) and his darker takes get the presence calm_mix gave every take (+2.5 dB at 3.2 kHz). The 6 dB limits: calm_mix used a fixed 3 dB cut and 2.5 dB lift; the dark character takes E01C L07 and L17 sit 8 to 9 dB under the presence target, and 6 dB is the most a corrective EQ should do.",
+     "deess_when_db": -17.0,
+     "deess": {
+      "split_hz": 4500,
+      "frame_thresh_db": -12.0,
+      "ratio": 3.0,
+      "max_reduction_db": 6.0
+     },
+     "deess_why": "Take-level switch -17 dB = calm_mix's deess_when_db (sound-e01c.md: one take of E01C, L14, was within 17 dB and was de-essed; a de-esser on every take only dulls them). Inside a hot take only frames whose band above 4.5 kHz exceeds -12 dB of the frame are reduced, ratio 3, at most 6 dB; every other frame is an exact bypass.",
+     "comp": {
+      "threshold_dbfs": -24.0,
+      "ratio": 2.0,
+      "knee_db": 4.0,
+      "attack_ms": 8.0,
+      "release_ms": 160.0,
+      "detector_ms": 5.0,
+      "pause_floor": true,
+      "pause_floor_step_db": 0.25,
+      "pause_floor_max_db": 6.0
+     },
+     "comp_why": "RMS compressor (5 ms detector, soft knee 4 dB, attack 8 ms, release 160 ms = calm_mix's acompressor) after the take is pre-gained to -19 LUFS dual-mono. Threshold -24 dBFS, as calm_mix's (0.063): at -19 LUFS dual-mono the speech RMS per channel is about -21 dBFS, so loud syllables are held. Ratio 2 for the narrator (long, calm lines keep their shape), 2.5 for characters (calm_mix's). Rehearsal: mean gain reduction 1.3 to 2.7 dB, maximum 4.8 to 7.6 dB. R-472: pause_floor holds the soft frames down with the loud part after the limiter, so the pauses end no closer to the voice than the take came in (steps of pause_floor_step_db, at most pause_floor_max_db).",
+     "limit": {
+      "ceiling_dbtp": -6.0,
+      "lookahead_ms": 3.0,
+      "hold_ms": 20.0,
+      "release_ms": 80.0
+     },
+     "limit_why": "True-peak lookahead limiter (3 ms lookahead, 20 ms hold, 80 ms release) at -6 dBTP. At -19 LUFS dual-mono the compressed takes peak at -6 to -4 dBTP before it, so it takes 0 to 2 dB on the odd plosive (rehearsal). -6 sits 1.5 dB over calm_mix's voice-bus limit (-7.5 dBFS sample peak), so that limiter has little work, and 4.5 dB over the master's -1.5 dBTP aim. A static trim after it makes 'never above the ceiling' a guarantee."
+    },
+    "dialogue": {
+     "highpass_hz": 90,
+     "highpass_order": 2,
+     "highpass_why": "90 Hz = calm_mix's voice high-pass; the cast's voices sit higher than the narrator's and the band under 90 Hz is room and rumble on a phone.",
+     "denoise": {
+      "open_below_p95_db": 24,
+      "knee_db": 6,
+      "target_noise_rel_db": -50.0,
+      "skip_if_noise_rel_at_or_below_db": -48.0,
+      "max_range_db": 15.0,
+      "lookahead_ms": 5,
+      "hold_ms": 30,
+      "smooth_ms": 20,
+      "iterations": 3
+     },
+     "denoise_why": "As the narrator: one noise floor for every voice, so a scene does not change room between speakers.",
+     "eq": {
+      "mud": {
+       "hz": 315,
+       "q": 0.9,
+       "target_rel_db": 3.5,
+       "max_cut_db": 6.0
+      },
+      "presence": {
+       "hz": 3150,
+       "q": 0.75,
+       "target_rel_db": -12.0,
+       "max_boost_db": 6.0
+      },
+      "dead_band_db": 1.0,
+      "iterations": 3
+     },
+     "eq_why": "As the narrator, with dialogue targets mud +3.5 dB and presence -12.0 dB: the approved E01C character takes measure mud +4.7 median (+1.8 to +7.1) and presence -12.8 (-21.4 to +4.4), so the boxiest (L04, L08) are cut and the darkest (L07, L17) lifted; characters cut through, the narrator stays warmer (mud target 0.5 dB lower).",
+     "deess_when_db": -17.0,
+     "deess": {
+      "split_hz": 4500,
+      "frame_thresh_db": -12.0,
+      "ratio": 3.0,
+      "max_reduction_db": 6.0
+     },
+     "deess_why": "As the narrator (calm_mix's -17 dB switch).",
+     "comp": {
+      "threshold_dbfs": -24.0,
+      "ratio": 2.5,
+      "knee_db": 4.0,
+      "attack_ms": 8.0,
+      "release_ms": 160.0,
+      "detector_ms": 5.0,
+      "pause_floor": true,
+      "pause_floor_step_db": 0.25,
+      "pause_floor_max_db": 6.0
+     },
+     "comp_why": "calm_mix's compressor (ratio 2.5, 8/160 ms, knee 4), threshold as the narrator's. R-472: pause_floor holds the soft frames down with the loud part after the limiter, so the pauses end no closer to the voice than the take came in (steps of pause_floor_step_db, at most pause_floor_max_db).",
+     "limit": {
+      "ceiling_dbtp": -6.0,
+      "lookahead_ms": 3.0,
+      "hold_ms": 20.0,
+      "release_ms": 80.0
+     },
+     "limit_why": "As the narrator: one ceiling for every voice."
+    }
+   }
+  }
+ },
+ "bed": {
+  "below_voice_lu": 15.0,
+  "highpass_hz": 110,
+  "lowpass_hz": 3200,
+  "scoop": [
+   2400,
+   0.7,
+   -5.0
+  ],
+  "why": "calm_mix.PRESETS['phone-first'] values, unchanged (research/sound-e01c.md: the pad sits 15 LU under the voice in the phone simulation; band 110 Hz to 3.2 kHz with a speech scoop at 2.4 kHz)."
+ },
+ "sfx": {
+  "rel_db": {
+   "transition": -9.0,
+   "choice": -10.0,
+   "foley": -13.0
+  },
+  "sound_adj_db": {
+   "horn": 7.0,
+   "thud": 4.0,
+   "wind": -4.0,
+   "hum": -8.0,
+   "cloth": -6.0,
+   "pen": -2.0,
+   "ping": -2.0,
+   "keys": -1.0,
+   "bell": 0.0
+  },
+  "band": {
+   "default": [
+    160,
+    11000
+   ],
+   "horn": [
+    90,
+    6000
+   ],
+   "thud": [
+    80,
+    9000
+   ],
+   "wind": [
+    150,
+    5000
+   ],
+   "page": [
+    350,
+    10000
+   ],
+   "boots": [
+    220,
+    7000
+   ],
+   "step": [
+    180,
+    8000
+   ],
+   "pen": [
+    400,
+    9000
+   ],
+   "cloth": [
+    250,
+    8000
+   ],
+   "keys": [
+    800,
+    12000
+   ],
+   "watch": [
+    900,
+    9000
+   ],
+   "whoosh": [
+    200,
+    9000
+   ],
+   "pop": [
+    120,
+    9000
+   ],
+   "pop-high": [
+    120,
+    9000
+   ],
+   "ink": [
+    200,
+    9000
+   ],
+   "bell": [
+    150,
+    9000
+   ],
+   "hum": [
+    90,
+    4000
+   ],
+   "creak": [
+    150,
+    7000
+   ],
+   "latch": [
+    400,
+    11000
+   ],
+   "lock": [
+    300,
+    11000
+   ],
+   "ping": [
+    500,
+    11000
+   ],
+   "knock": [
+    150,
+    8000
+   ],
+   "drawer": [
+    200,
+    9000
+   ]
+  },
+  "gain_limits_db": [
+   -40.0,
+   32.0
+  ],
+  "peak_under_voice_db": 2.0,
+  "dedupe_window_s": 0.03,
+  "why": "calm_mix values, unchanged (sound-e01c.md: cue loudness relative to the voice in the phone simulation, per-sound band limits, no cue peak over the dialogue, stacked duplicates within 30 ms dropped)."
+ },
+ "duck": {
+  "depth_db": {
+   "bed": 9.0,
+   "fg": 8.0,
+   "bg": 9.0
+  },
+  "lead_s": 0.08,
+  "attack_s": 0.05,
+  "release_s": 0.45,
+  "bridge_s": 0.3,
+  "intro_dip_db": 12.0,
+  "intro_dip_fade_s": 0.25,
+  "why": "calm_mix values, unchanged: fixed depth per bus computed from the voice stem, 80 ms lookahead, gaps under 0.3 s bridged (sound-e01c.md); C10 intro dip 12 dB."
+ },
+ "master": {
+  "lufs_target": -14.0,
+  "true_peak_target_dbtp": -1.5,
+  "compose_lra": 11.0,
+  "calm_legacy_lra": 4.5,
+  "why": "-14 LUFS: measured on delivered Instagram renditions of 3 of the 4 benchmark reels (-14.1; compose.py LOUD_TARGET_I, kb/guides/reels.md section 3). -1.5 dBTP aim leaves AAC re-encode headroom under the -1.0 ceiling (compose.py LOUD_TP_TARGET). compose_lra 11 = loudnorm's default (compose.py LOUD_LRA); calm_legacy_lra 4.5 = calm_compose's legacy loudnorm (LRA of the reels 3.1 to 4.2). All unchanged."
+ },
+ "delivery": {
+  "instagram": {
+   "lufs_target": -14.0,
+   "tolerance_lu": 1.0,
+   "true_peak_max_dbtp": -1.0
+  },
+  "facebook": {
+   "lufs_target": -14.0,
+   "tolerance_lu": 1.0,
+   "true_peak_max_dbtp": -1.0
+  },
+  "youtube": {
+   "lufs_target": -14.0,
+   "tolerance_lu": 1.0,
+   "true_peak_max_dbtp": -1.0
+  },
+  "why": "One file is posted to all three, so one set of numbers (compose.py LOUD_TARGET_I / LOUD_TOL / LOUD_TP_MAX and calm_compose's CALM-LOUDNESS literals -15..-13 LUFS, <= -1.0 dBTP, both unchanged). Instagram states no target; the -14 is measured (master.why)."
+ },
+ "silence": {
+  "max_gap_s": 0.6,
+  "why": "calm_compose SILENCE_MAX_S, recipe 5: no silence gap over 0.6 s (unchanged)."
+ },
+ "compose": {
+  "voice_lufs": -16.0,
+  "bed_lufs": -23.0,
+  "sfx_gain_db": -18.0,
+  "duck_bed": {
+   "threshold": 0.03,
+   "ratio": 8,
+   "attack_ms": 20,
+   "release_ms": 400
+  },
+  "duck_sfx": {
+   "threshold": 0.03,
+   "ratio": 4,
+   "attack_ms": 20,
+   "release_ms": 400
+  },
+  "why": "The older non-calm compose.py audio stage, values unchanged: voice -16 / bed -23 (nj-kit:bg-music rule 2), -18 dB per cue and sidechain ducking as house defaults ('to be tuned by ear', bg-music reference/sfx-practice.md)."
+ },
+ "take": {
+  "why": "The take stage before the mastering chain (voice.py cmd_voice, the Chatterbox worker, trim_take). the owner 2026-10-26: 'when the voicing of a sentence starts, a small window sometimes appears before or after with noise only, no words being said ... prevent it without cutting the sounds and words short'. Root causes measured on the narrator search's 50 raw takes (work/voice-scout/judge) and the 28 E01C takes (main checkout work/sound-chain/edge-proof/): (1) Chatterbox runs past the text: 14 of the 50 judge takes end exactly at the token cap (11.8, 10.0, 8.4 s) and one 3 tokens short: the model never emitted EOS; (2) the old trim counted a low drone (energy within 30 dB of the loud part, no formant band) and a loud breath burst (flat noise loud enough to skip the hiss test) as speech, so j03 L01 kept a 3.97 s noise-only tail; (3) the reference clip carried 0.63 s / 1.15 s of room tone at its edges. Fix order: prevent at the source (gen_cap, eos, the reference cleaned once), then the word-safe edge cleaner (edge), then the gate (checks.edge_noise). The mastering chain is not a cause: on the 48 judge takes with a master report it lowered the pause noise re the voice on 44 and raised it by at most 0.55 dB on 2 (j05 L10, j08 L10); its make-up gain does lift the absolute level of whatever edge noise is left, which is why the cleaner runs before it.",
+  "edge": {
+   "frame_s": 0.02,
+   "hop_s": 0.01,
+   "periodicity_win_s": 0.04,
+   "f0_range_hz": [
+    60,
+    400
+   ],
+   "voicing_threshold": 0.45,
+   "voiced_below_p95_db": 30,
+   "voiced_band_hz": [
+    250,
+    4000
+   ],
+   "voiced_min_band_share_db": -15.0,
+   "core_f0_max_st": 8.0,
+   "run_gap_s": 0.4,
+   "min_run_s": 0.04,
+   "stray_below_p95_db": 12,
+   "silent_p95_dbfs": -50.0,
+   "ref_window_db": 40.0,
+   "loud_below_p95_db": 18,
+   "attach_below_p95_db": 30,
+   "attach_min_band_share_db": -10.0,
+   "attach_max_flatness": 0.3,
+   "decay_below_p95_db": 40.0,
+   "fricative": {
+    "hi_split_hz": 3000,
+    "below_p95_db": 38,
+    "min_hi_db": 8.0,
+    "min_zcr": 0.25,
+    "max_flatness": 0.35
+   },
+   "attach_bridge_s": 0.04,
+   "attach_max_lead_s": 0.3,
+   "attach_max_tail_s": 0.35,
+   "lead_guard_s": 0.1,
+   "tail_guard_s": 0.2,
+   "fade_in_s": 0.02,
+   "fade_out_s": 0.06,
+   "lead_pad_s": 0.08,
+   "tail_pad_s": 0.15,
+   "active_below_p95_db": 50,
+   "active_min_dbfs": -70.0,
+   "why": "tools/voice_edges.py, called by voice.trim_take on every new take (and once on a reference at casting). Frames 20 ms / 10 ms hop = voice.py TRIM_WIN / TRIM_HOP. CORE = voiced frames: normalised autocorrelation (Boersma's window-corrected method) >= 0.45 (Praat's default voicing threshold) at a lag inside 60-400 Hz, within 30 dB of the loud part (voice.py SPEECH_BELOW_PEAK_DB), at least -15 dB of the frame's energy in 250 Hz-4 kHz (a hum or a drone has none; measured: speech vowels 0 to -7 dB, the drones after j07 L02 and j03 L01 -11 to -50), and within 8 semitones of the take's own median pitch (a narrator's calm reading spans about +/-3 st; the 369 Hz whine after j02 L02 sits +19 st). Runs of voiced frames with gaps under 0.4 s; a run whose p90 sits 12 dB under the loud part is stray (voice.py GAP_S, STRAY_BELOW_PEAK_DB). EXTENSION outward from the core through attached frames, gaps up to 40 ms bridged: loud (within 18 dB) without limit (a creaky or pharyngeal onset is speech); energetic (within 30 dB, 10 dB over the floor, -10 dB in band); fricative (within 38 dB, 6 dB over the floor, energy above 3 kHz at least 8 dB over 100 Hz-3 kHz, zero-crossing rate >= 0.25, spectral flatness <= 0.35 so a flat hiss is not one; measured: the j03 reference ز +16 to +24 dB and flatness 0.02 to 0.10, the hiss after j03 L01 +1 to +10 dB and 0.20 to 0.47: س ش ف ث ز and the release of ت); voiced decay (periodic at the speaker's pitch, 12 dB over the floor: a final م or ن); the quiet kinds at most 0.30 s before / 0.35 s after the core. Measured on the j03 reference: its final ز (5.74-5.86 s, high band +22 dB, ZCR 0.55) is inside the span; j03 L16's final م decays to 4.43 s and is kept. GUARDS 100 ms before the onset and 200 ms after the offset (the brief's 80-120 and 150-250 ms), equal-power fades 20 ms / 60 ms inside the guards only, so no frame of the span is ever scaled; pads 80 / 150 ms of digital silence (voice.py LEAD_PAD_S / TAIL_PAD_S, unchanged). active_*: the judge's own sound definition (within 50 dB of the loud part and above -70 dBFS) for the noise-only window."
+  },
+  "gen_cap": {
+   "tokens_per_s": 25,
+   "base_s": 1.0,
+   "default_letters_per_s": 5.0,
+   "margin": 1.3,
+   "min_tokens": 50,
+   "max_tokens": 1000,
+   "voices": {
+    "narrator": {
+     "ref_sha256": "af05a682f20ff21fc8a58b90b12b18f47237ea39a6d0a96e0673143b009b4ac3",
+     "slowest_letters_per_s": 7.08,
+     "takes": 5,
+     "fit": "slowest take",
+     "measured": {
+      "L01": 8.12,
+      "L02": 7.08,
+      "L03": 7.75,
+      "L10": 8.41,
+      "L16": 8.56
+     },
+     "source": "the 5 judge takes of j03 (work/voice-scout/judge/audio/chatterbox-j03): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, 2026-10-26"
+    },
+    "hero": {
+     "ref_sha256": "d2447535c4e16c367de528983e9df32f4e4b3b69c6be9a381677394eb113a8dc",
+     "slowest_letters_per_s": 5.62,
+     "takes": 3,
+     "fit": "slowest take",
+     "measured": {
+      "L01": 7.05,
+      "L04": 5.62,
+      "L11": 7.19
+     },
+     "source": "the 3 judge takes of hero-c1 (main checkout work/cast-scout/judge/audio/hero-c1, voiced on the judged clip): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, 2026-10-27; takes that ran to the token cap: none",
+     "superseded": {
+      "2026-10-27": {
+       "ref_sha256": "cba5c3ba57c7c4a9f0e47541df31515b51a76d3b69b15a0cbe3822cab6413ec8",
+       "slowest_letters_per_s": 6.0,
+       "takes": 5,
+       "fit": "slowest take",
+       "measured": {
+        "L04": 8.09,
+        "L07": 7.73,
+        "L12": 6.0,
+        "L15": 7.06,
+        "L17": 7.02
+       },
+       "source": "E01C calm raw takes (work/voice/E01C): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, reference sha256 as cast today, 2026-10-26"
+      }
+     }
+    },
+    "guide": {
+     "ref_sha256": "c76b63678f401a66b78ad43b263d0207ccc4ed664a7747685de0790b766ba736",
+     "slowest_letters_per_s": 5.67,
+     "takes": 3,
+     "fit": "slowest take",
+     "measured": {
+      "L02": 9.03,
+      "L03": 6.89,
+      "L05": 5.67
+     },
+     "source": "the 3 judge takes of guide-c2 (main checkout work/cast-scout/judge/audio/guide-c2, voiced on the judged clip): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, 2026-10-27; takes that ran to the token cap: none",
+     "superseded": {
+      "2026-10-27": {
+       "ref_sha256": "ea25b7558d60c342a31e6eeb4b462aa5f21c7d7847f4ad3b9929eb69edc8205d",
+       "slowest_letters_per_s": 4.37,
+       "takes": 2,
+       "fit": "slowest take x 0.74 (only 2 takes: the spread of one voice is unknown)",
+       "measured": {
+        "L06": 6.44,
+        "L08": 5.91
+       },
+       "source": "E01C calm raw takes (work/voice/E01C): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, reference sha256 as cast today, 2026-10-26"
+      }
+     }
+    },
+    "lead": {
+     "ref_sha256": "a475e02b2774fa5ef92470ca87f84a990add529568ee5f03d4fc6af9e54215e0",
+     "slowest_letters_per_s": 6.54,
+     "takes": 3,
+     "fit": "slowest take",
+     "measured": {
+      "E14": 8.46,
+      "E03": 6.54,
+      "E07": 8.75
+     },
+     "source": "the 3 judge takes of lead-c1 (main checkout work/cast-scout/judge/audio/lead-c1, voiced on the judged clip): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, 2026-10-27; takes that ran to the token cap: none",
+     "superseded": {
+      "2026-10-27": {
+       "ref_sha256": "0e0f045da2f38ad0fc94175328fdbce701faf0b0e239b353c44fd66fa1de80e9",
+       "slowest_letters_per_s": 6.45,
+       "takes": 1,
+       "fit": "slowest take x 0.74 (only 1 take: the spread of one voice is unknown)",
+       "measured": {
+        "L14": 8.71
+       },
+       "source": "E01C calm raw takes (work/voice/E01C): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, reference sha256 as cast today, 2026-10-26"
+      }
+     }
+    },
+    "extra": {
+     "ref_sha256": "dc401465cbd7a7367b312dbfa12f02407062c4b275e75fc16a5d54f767e78f79",
+     "slowest_letters_per_s": 6.7,
+     "takes": 3,
+     "fit": "slowest take",
+     "measured": {
+      "A02": 8.05,
+      "A08": 6.7,
+      "A13": 7.23
+     },
+     "source": "the 3 judge takes of extra-c3 (main checkout work/cast-scout/judge/audio/extra-c3, voiced on the judged clip): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, 2026-10-27; takes that ran to the token cap: none",
+     "superseded": {
+      "2026-10-27": {
+       "ref_sha256": "c8697b5cced9e5c52c657f3d978a656c9df361960aa955ce126d62aeb50226c9",
+       "slowest_letters_per_s": 5.06,
+       "takes": 1,
+       "fit": "slowest take x 0.74 (only 1 take: the spread of one voice is unknown)",
+       "measured": {
+        "extra": 6.84
+       },
+       "source": "work/voice-samples raw take (work/voice-samples): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, reference sha256 as cast today, 2026-10-26"
+      }
+     }
+    },
+    "han": {
+     "ref_sha256": "d9f69f0b0e8b0c1eeecc0a0546dd292d7b0a6d4c59ead219bd32d2f4e00d7911",
+     "slowest_letters_per_s": 8.27,
+     "takes": 3,
+     "fit": "slowest take",
+     "measured": {
+      "H01": 8.28,
+      "H07": 9.73,
+      "H12": 9.2
+     },
+     "source": "the 3 judge takes of han-c2 (main checkout work/cast-scout/judge/audio/han-c2, voiced on the judged clip): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, 2026-10-27; takes that ran to the token cap: none",
+     "superseded": {
+      "2026-10-27": {
+       "ref_sha256": "78d28b233fd28be27e08e37eedb6ef2bdf9719e094b703a8524b46a41201ea7e",
+       "slowest_letters_per_s": 6.24,
+       "takes": 1,
+       "fit": "slowest take x 0.74 (only 1 take: the spread of one voice is unknown)",
+       "measured": {
+        "han": 8.43
+       },
+       "source": "work/voice-samples raw take (work/voice-samples): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, reference sha256 as cast today, 2026-10-26"
+      }
+     }
+    },
+    "rival": {
+     "ref_sha256": "b5e7bb32213e9781c60e6d31201c26829d22e8b07f6155c7a091ab31b1ea73e7",
+     "slowest_letters_per_s": 6.75,
+     "takes": 3,
+     "fit": "slowest take",
+     "measured": {
+      "D02": 7.05,
+      "D05": 7.98,
+      "D11": 6.75
+     },
+     "source": "the 3 judge takes of rival-c2 (main checkout work/cast-scout/judge/audio/rival-c2, voiced on the judged clip): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, 2026-10-27; takes that ran to the token cap: none",
+     "superseded": {
+      "2026-10-27": {
+       "ref_sha256": "0d6eb8f9241f1ff18bf9c075b360fd969f5887e9cb5c0b41704f5f94c9d1adf9",
+       "slowest_letters_per_s": 5.05,
+       "takes": 1,
+       "fit": "slowest take x 0.74 (only 1 take: the spread of one voice is unknown)",
+       "measured": {
+        "rival": 6.83
+       },
+       "source": "work/voice-samples raw take (work/voice-samples): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, reference sha256 as cast today, 2026-10-26"
+      }
+     }
+    },
+    "partner": {
+     "ref_sha256": "44e871c729ec5020f30c8f77e0b1c2a299d922eef0052cfa03ceb7c9715bc232",
+     "slowest_letters_per_s": 7.06,
+     "takes": 3,
+     "fit": "slowest take",
+     "measured": {
+      "I01": 7.63,
+      "I05": 8.36,
+      "I08": 7.06
+     },
+     "source": "the 3 judge takes of partner-c3 (main checkout work/cast-scout/judge/audio/partner-c3, voiced on the judged clip): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, 2026-10-27; takes that ran to the token cap: none",
+     "superseded": {
+      "2026-10-27": {
+       "ref_sha256": "087c87039ca3eee7c0107054b261c1f07411cc4fd1e03a666463c8b218e001e4",
+       "slowest_letters_per_s": 4.76,
+       "takes": 1,
+       "fit": "slowest take x 0.74 (only 1 take: the spread of one voice is unknown)",
+       "measured": {
+        "partner": 6.43
+       },
+       "source": "work/voice-samples raw take (work/voice-samples): Arabic letters of tts_text / speech span (voice_edges.speech_span) of the raw take, reference sha256 as cast today, 2026-10-26"
+      }
+     }
+    }
+   },
+   "why": "cap_tokens = 25 tokens/s x (base_s + letters / (slowest_letters_per_s / margin)), clamped to 50-1000. Chatterbox hard-codes 1000 tokens (40 s); 14 of the 50 judge takes ran to the old cap (1 s + 0.2 s per letter = 5 letters/s), so the cap is the length of the noise tail. Per voice: the slowest take measured for that speaker AND that exact reference clip (ref_sha256; a recast falls back to the default), divided by a margin of 1.3 so a slower, more dramatic reading is never cut (j03: slowest 7.08 letters/s, fastest 8.56: the margin covers 1.2x the spread). j03 L01 (54 letters): 11.8 s before, 10.9 s now; the EOS guard (eos) is the real stop, the cap the bound. default_letters_per_s 5.0 and base_s 1.0 = the old cap, unchanged for any voice not measured. The same rate gives voice.edge_done_after_s: letters / rate after the first word, the line is certainly spoken; a voiced run that starts later, after a 0.4 s pause, is a model run-on and is dropped by the cleaner. Cast characters (2026-10-26, expander-protect): every character with a take has its own entry, fitted the same way from E01C's raw character takes (hero 5, guide 2, lead 1) and work/voice-samples (extra, han, rival, partner 1 each), each keyed to the reference clip as cast today. A voice with 3 or more takes uses its slowest take (hero: 6.0 to 8.09 letters/s, slowest/fastest 0.74, the widest spread measured, wider than j03's 0.83). A voice with fewer takes cannot show its own spread, so its slowest plausible rate is its slowest take x thin_sample_spread (0.74 = hero's): a one-take voice is never capped tighter than a reading as slow as hero's slowest would need, so the cap never cuts a word. Replace the entry with the plain slowest take as soon as a voice has 3 takes. A recast reference falls back to the default (ref_sha256).",
+   "thin_sample_spread": 0.74
+  },
+  "eos": {
+   "after_complete_max_s": 1.2,
+   "why": "chatterbox-tts 0.1.7 mtl: AlignmentStreamAnalyzer forces EOS on a long tail (attention on the LAST 3 text tokens for 5 frames, 200 ms), a repetition (attention on all but the LAST 5) or a token repeated, and SUPPRESSES EOS whenever the attention argmax sits before the last 3 tokens. Attention resting on the 4th or 5th token from the end is neither, so after the text is complete the take can run to the cap (judge chatterbox.log: 36 forced EOS, yet 14 takes at the cap). voice.install_eos_guard forces EOS once 1.2 s (30 tokens) have been made after the analyzer marked the text complete: the last 3 text tokens are one syllable, and 1.2 s is 6x the package's own 200 ms long-tail rule, so a final word is never cut. Whatever noise is made inside that 1.2 s is removed by the edge cleaner. Not yet run on the GPU (one take per line: no line was re-voiced to test it); unit-tested on a fake analyzer."
+  }
+ },
+ "checks": {
+  "clarity_median_db": 20.0,
+  "clarity_p10_db": 14.0,
+  "clarity_min_db": 8.0,
+  "clarity_share_below_db": 12.0,
+  "clarity_share_max": 0.04,
+  "mono_loss_lu_max": 1.0,
+  "mono_clarity_drop_db_max": 1.5,
+  "corr_p05_min": 0.2,
+  "tp_max_dbtp": -1.0,
+  "sample_peak_max_db": -1.0,
+  "sfx_over_voice_db": 0.0,
+  "why": "audio_checks.THRESH, unchanged (house numbers set before the first E01C 'after' measurement, sound-e01c.md 'Honesty notes'). Never loosened.",
+  "voice_master": {
+   "lufs_tolerance_lu": 1.0,
+   "true_peak_margin_db": 0.05,
+   "max_noise_rel_db": -40.0,
+   "max_sibilance_db": -14.0,
+   "why": "VOICE-MASTER, run by `voice.py gate --full` on every take that has a master record. Set from the design, not fitted to the proof: loudness within 1 LU of the role target (the master gate's own tolerance); true peak at most the role ceiling (+0.05 dB rounding); noise floor at most -40 dB under the voice, 8 dB above the de-noise skip line (-48) so only a take the de-noiser could not reach fails; sibilance at most -14 dB, the de-ess switch (-17) plus 3 dB; no digital-silence run inside the take."
+  },
+  "edge_noise": {
+   "max_lead_ms": 30,
+   "max_tail_ms": 50,
+   "why": "VOICE-EDGE-NOISE, run by `voice.py gate --full` on every trimmed take (tail_checks). The same detector as the cleaner; the window counted is sound (judge definition) before the onset or after the offset minus the guard. 30 ms lead / 50 ms tail = 3 and 5 analysis frames of slack for a level change by the mastering chain after the cleaner; a cleaned take measures 0 to 10 ms (edge-proof), the old trim's j03 L01 3950 ms. Set from the design, not fitted; never loosened."
+  }
+ }
+}

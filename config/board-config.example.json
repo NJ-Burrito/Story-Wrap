@@ -1,0 +1,6 @@
+{
+  "auto_reply": false,
+  "auto_kinds": ["vote"],
+  "max_replies_per_day": 10,
+  "max_replies_per_run": 3
+}

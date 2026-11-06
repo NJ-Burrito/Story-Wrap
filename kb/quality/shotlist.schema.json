@@ -1,0 +1,371 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "shotlist/1",
+ "description": "Maps an episode's script lines to shots. File: bible/series/<series>/episodes/<ep>/shotlist.json (written by the director, Opus). Read by tools/compose.py. Each shot is a tools/shot.py shot folder; frames are the shot render's frame numbers at the shotlist fps. A transition of N frames overlaps the two shots by N/fps seconds, so it shortens the episode by that much. Spoken lines are placed on the episode timeline and may cross cuts (see `lines`). Times in `lines[].at_s`, `faces[].t0/t1`, `sfx[].t` are seconds from the START of the shot (after in_frame).",
+ "type": "object",
+ "required": [
+  "format",
+  "episode",
+  "fps",
+  "canvas",
+  "hook",
+  "shots",
+  "transitions",
+  "end_card"
+ ],
+ "properties": {
+  "format": {
+   "const": "shotlist/1"
+  },
+  "episode": {
+   "type": "string"
+  },
+  "fps": {
+   "type": "number",
+   "minimum": 1
+  },
+  "profile": {
+   "enum": ["premium", "calm"],
+   "default": "premium",
+   "description": "Gate profile (tools/qg_checks.py format_of). `calm` selects the calm-format gates (kb/quality/gate-spec.md section H); the never-a-slideshow motion and cut thresholds stay for `premium`. The `format` key above is the schema id, so the profile has its own key."
+  },
+  "wrapper": {
+   "type": "object",
+   "description": "Calm format: where the recurring wrapper sits on the episode clock, seconds. Required parts: recap (inside the first 3 s), day_card, choice_card (inside the last 20 s), follow_card (after the choice card).",
+   "properties": {
+    "recap": {"type": "object", "required": ["t0", "t1"], "properties": {"t0": {"type": "number", "minimum": 0}, "t1": {"type": "number", "minimum": 0}}},
+    "day_card": {"type": "object", "required": ["t0", "t1"], "properties": {"t0": {"type": "number", "minimum": 0}, "t1": {"type": "number", "minimum": 0}}},
+    "choice_card": {"type": "object", "required": ["t0", "t1"], "properties": {"t0": {"type": "number", "minimum": 0}, "t1": {"type": "number", "minimum": 0}}},
+    "follow_card": {"type": "object", "required": ["t0", "t1"], "properties": {"t0": {"type": "number", "minimum": 0}, "t1": {"type": "number", "minimum": 0}}}
+   }
+  },
+  "canvas": {
+   "type": "array",
+   "items": {
+    "type": "integer",
+    "minimum": 16
+   },
+   "minItems": 2,
+   "maxItems": 2,
+   "description": "[1080, 1920] for a real episode; safe zones are fractions of it."
+  },
+  "hook": {
+   "type": "object",
+   "required": [
+    "event",
+    "at_s"
+   ],
+   "properties": {
+    "event": {
+     "type": "string",
+     "minLength": 3,
+     "description": "The story event or the story's question that lands in the first 2 s (reels.md section 2)."
+    },
+    "at_s": {
+     "type": "number",
+     "minimum": 0
+    }
+   },
+   "description": "EP-HOOK: event declared at or before 2.0 s, plus measured motion in the first shot."
+  },
+  "shots": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "folder",
+     "in_frame",
+     "out_frame"
+    ],
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+$"
+     },
+     "folder": {
+      "type": "string",
+      "description": "tools/shot.py shot folder (work/shots/<id>), repo-relative."
+     },
+     "video": {
+      "type": "string",
+      "description": "Render path inside the folder; default out/<folder name>.mp4."
+     },
+     "in_frame": {
+      "type": "integer",
+      "minimum": 0
+     },
+     "out_frame": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Exclusive. Must be greater than in_frame."
+     },
+     "beat": {
+      "type": "string"
+     },
+     "lines": {
+      "type": "array",
+      "description": "Lines that START in this shot. A line is placed on the episode timeline and may run across cuts (J-cut, L-cut); the shot is only where it starts.",
+      "items": {
+       "type": "object",
+       "required": [
+        "line"
+       ],
+       "properties": {
+        "line": {
+         "type": "string",
+         "description": "id of a line in script.json"
+        },
+        "at_s": {
+         "type": "number",
+         "description": "Seconds from the start of this shot to the start of the line. Negative = J-cut (the sound starts in the shot before). PLAN-LINE-TIMELINE: the line must lie inside the episode. Voice first: when the shot's spec has a voice_lines entry for the line, the offset comes from it (start_s minus in_frame/fps) and at_s may be left out; a stated at_s must agree with it (PLAN-VOICE-OFFSET). Without a spec entry at_s is required."
+        },
+        "est_dur_s": {
+         "type": "number",
+         "exclusiveMinimum": 0,
+         "description": "Used only until the take exists (no voice yet)."
+        },
+        "on_screen": {
+         "type": "boolean",
+         "default": true,
+         "description": "false = the speaker is not shown for this line (off-screen voice, cutaway, POV insert): no visemes are applied and PLAN-LIPSYNC asks for no shot."
+        },
+        "visible_in": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "description": "Shot ids where the speaker is visible and facing camera while the line plays; the visemes apply only there. PLAN-LIPSYNC: with on_screen true, at least one must overlap the line in time."
+        },
+        "overlap_with": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "description": "Ids of lines of a DIFFERENT speaker this line deliberately talks over (declared crosstalk). Undeclared overlap fails PLAN-LINE-OVERLAP."
+        },
+        "note": {
+         "type": "string",
+         "description": "Director's note; start with TODO for an unknown."
+        }
+       }
+      }
+     },
+     "faces": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "t0",
+        "t1",
+        "box"
+       ],
+       "properties": {
+        "t0": {
+         "type": "number"
+        },
+        "t1": {
+         "type": "number"
+        },
+        "box": {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 4,
+         "maxItems": 4,
+         "description": "x0,y0,x1,y1 in canvas px; from the shot's camera plan."
+        }
+       }
+      }
+     },
+     "sfx": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "t",
+        "file",
+        "licence_id"
+       ],
+       "properties": {
+        "t": {
+         "type": "number",
+         "minimum": 0
+        },
+        "file": {
+         "type": "string"
+        },
+        "licence_id": {
+         "type": "string"
+        },
+        "gain_db": {
+         "type": "number"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "transitions": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "from",
+     "to",
+     "type",
+     "frames"
+    ],
+    "properties": {
+     "from": {
+      "type": "string"
+     },
+     "to": {
+      "type": "string"
+     },
+     "type": {
+      "enum": [
+       "cut",
+       "fade",
+       "fadeblack",
+       "fadewhite",
+       "dissolve",
+       "dip",
+       "wipe",
+       "wipeleft",
+       "wiperight",
+       "wipeup",
+       "wipedown",
+       "slideleft",
+       "slideright",
+       "slideup",
+       "slidedown",
+       "circleopen",
+       "circleclose",
+       "smoothleft",
+       "smoothright",
+       "pixelize",
+       "hblur"
+      ]
+     },
+     "frames": {
+      "type": "integer",
+      "minimum": 0
+     },
+     "cause": {
+      "type": "string",
+      "description": "Why the cut or wipe happens here (a story reason)."
+     }
+    }
+   },
+   "description": "One entry per neighbouring pair; a plain cut is type cut, frames 0."
+  },
+  "sfx_map": {
+   "type": "object",
+   "description": "Maps a shot spec's emotion_track.sfx `what` text to a licensed file. Spec cues with no entry here are reported as unfilled (a warning, not a failure).",
+   "additionalProperties": {
+    "type": "object",
+    "required": [
+     "file",
+     "licence_id"
+    ],
+    "properties": {
+     "file": {
+      "type": "string"
+     },
+     "licence_id": {
+      "type": "string"
+     },
+     "gain_db": {
+      "type": "number"
+     }
+    }
+   }
+  },
+  "music": {
+   "type": [
+    "object",
+    "null"
+   ],
+   "required": [
+    "file",
+    "licence_id"
+   ],
+   "properties": {
+    "file": {
+     "type": "string"
+    },
+    "licence_id": {
+     "type": "string"
+    },
+    "gain_db": {
+     "type": "number",
+     "description": "Offset from the -23 LUFS bed level."
+    }
+   }
+  },
+  "end_card": {
+   "type": "object",
+   "required": [
+    "duration_s",
+    "choices",
+    "comment_prompt_ar"
+   ],
+   "properties": {
+    "duration_s": {
+     "type": "number",
+     "minimum": 0
+    },
+    "question_ar": {
+     "type": "string"
+    },
+    "choices": {
+     "type": "array",
+     "minItems": 2,
+     "maxItems": 2,
+     "items": {
+      "type": "object",
+      "required": [
+       "id",
+       "text_ar"
+      ],
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "text_ar": {
+        "type": "string"
+       },
+       "badge": {
+        "type": "string"
+       }
+      }
+     }
+    },
+    "comment_prompt_ar": {
+     "type": "string"
+    },
+    "backdrop": {
+     "enum": [
+      "live-loop",
+      "live-hold",
+      "static"
+     ],
+     "default": "live-loop",
+     "description": "END-CARD: what sits behind the choice card. live-loop (default) plays the last piece's final loop_s seconds forward and back under a scrim, so the picture never freezes; live-hold holds its last frame; static is the old flat card (only for a tiny proof)."
+    },
+    "loop_s": {
+     "type": "number",
+     "exclusiveMinimum": 0,
+     "maximum": 4,
+     "default": 1.5,
+     "description": "live-loop: seconds of the last piece looped (forward then back)."
+    }
+   },
+   "description": "EP-CHOICE: the viewer's two choices (series.md episode engine), a comment prompt, Thmanyah, inside the safe zone."
+  }
+ }
+}

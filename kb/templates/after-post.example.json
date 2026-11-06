@@ -1,0 +1,6 @@
+{
+  "_doc": "Copy to bible/series/<series>/episodes/<ep>/after-post.json (the writer owns it). All keys optional: a missing or gate-failing text falls back to the template bank in tools/after_post.py. No tashkeel, no link, no digit or fixed word to type, one question mark at most, under 220 characters. Never a poll on the two choices (votes are read from reel comments only).",
+  "first_comment": "ما الشيء الذي ضاع منكم ولا تزالون تتذكرونه؟ واحفظوا الحلقة لتعودوا إليها 🧳",
+  "story_question": "اقترحوا لنا غرضا مفقودا وحكايته للحلقة القادمة 🧳",
+  "story_slider": {"prompt": "كم أعجبتكم الحلقة؟", "emoji": "😍"}
+}

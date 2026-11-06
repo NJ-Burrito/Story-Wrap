@@ -1,0 +1,113 @@
+# 🎙️ Voice stage
+
+✅ **ENGINE = Chatterbox Multilingual** (owner, 2026-10-24, chosen by ear over SILMA; Gemini stays banned for good). Local on the GPU (RTX 2060), MIT, no network; venv `work/tts-engines/chatterbox` (chatterbox-tts 0.1.7, torch 2.6.0+cu124, `setuptools<81`). Every output carries Resemble's inaudible PerTh watermark. `voice --engine <anything else>` is refused with `VOICE-BANNED`. Why Chatterbox, licences and the trial: `research/tts-alternatives.md`.
+
+🧭 **How a take is made** (`uv run tools/voice.py voice <ep>` is a dry run; `--go` voices):
+1. The gate receipt must match the manifest and script (`VOICE-GATE`). Every speaker needs a **CC0 reference clip with a provenance file** in `casting.json` (`characters.<id>.reference.clip / license / provenance`, else `VOICE-REF`). A line with any earlier take or attempt is refused (`VOICE-ONCE`).
+2. Each line is logged `started` in `attempts.jsonl` **before** the model runs, so a crash never allows a second take. One worker process loads the model once and voices every line **once**; the seed is fixed from the line id.
+   **Load failures do not use up a line.** The worker writes `worker-marks.jsonl` (flushed) when the model has loaded and before each line's generation. After a failed run, a line whose generation never started is logged `not-taken (engine failed to load: <error>)` and may be voiced later; a line whose generation started stays blocked forever (`VOICE-ONCE`). The worker's stderr tail (e.g. OSError 1455, CUDA out of memory) goes into the Fail message and `attempts.jsonl`. `voice.py status <dir>` prints taken / not-taken / blocked-after-start per line; `voice.py repair <work-dir> --reason ...` converts old `started`-only logs. `--go` first checks free commit memory and free VRAM (about 4 GB) and refuses with `VOICE-PREFLIGHT` naming the short resource.
+3. Output per line in `work/voice/<ep>/`: `<id>.wav` (raw take, untouched), `<id>.trimmed.wav` (what the shot uses), and the take log in `attempts.jsonl` (settings, token cap, seconds, raw sha256, trim record).
+4. No ASR, no judge model, no second take. the owner listens.
+
+⚙️ **Settings** (every take; chatterbox-tts defaults, nothing tuned blind): `language_id ar, exaggeration 0.5, cfg_weight 0.5, temperature 0.8, repetition_penalty 2.0, min_p 0.05, top_p 1.0`. Two additions, both in `tools/sound_profile.json` `take.*` (2026-10-26): a token cap per line, `ceil(25 x (base_s + letters / (slowest letters per second / margin)))`, at most 1000, with the slowest rate measured per voice and reference clip (unmeasured voices keep the old `1.0 + 0.20 x letters`); and an EOS stop 1.2 s after the model has marked the text complete (`install_eos_guard`), because 14 of the 50 narrator-search takes ran on to the cap. Character settings from `casting.json` `pace.chatterbox` (cfg weight, exaggeration, temperature) override these per speaker. **Gen cap per voice (R-471, `take.gen_cap.voices.<speaker>`, slowest letters per second of that exact reference, key = `ref_sha256`, so a recast falls back to the default 5.0 until re-fitted):** narrator 7.08 (j03, 5 takes), hero 5.62, extra 6.70, han 8.27, rival 6.75, lead 6.54, partner 7.06, guide 5.67 (3 takes each, from the judge takes of the cast clips; hero-c1, extra-c3, han-c2, guide-c2 and the rest in `voices/audit/cast-*-2026-10-27.json`). The numbers live in the profile; this list is a copy for reading.
+
+✂️ **Edge clean (since 2026-10-26: `tools/voice_edges.py`, numbers `take.edge.*`).** The speech span comes from four features per 20 ms frame: energy, F0 voicing (normalised autocorrelation at the speaker's own pitch, with energy in the formant band), spectral flatness and zero crossings (fricatives such as س ش ف ث ز, the release of ت, a final م decay). A guard of 100 ms before and 200 ms after it is kept, equal-power fades sit inside the guards, and nothing inside the span is touched; everything outside is removed (a noise-only lead-in, a drone, a breath far from the words, a run-on). `VOICE-EDGE-NOISE` (`gate --full`) checks the result. Proof on real takes: main checkout `work/sound-chain/edge-proof/proof.md`. The history below describes the 2026-10-24 trim it replaces.
+
+🎚️ **Pause floor (R-472, 2026-10-27, `voice_master.stage_pause_floor`, numbers `voice.*.comp.pause_floor*`).** The last stage of the mastering chain, after the limiter: the compressor and the limiter lowered the loud part and let their gain recover under the soft frames, so pauses ended closer to the voice than the take was generated (E01C L05, L13, L19, L22, L23). The floor gives the soft frames the gain the loud part lost, in small steps, until the pause distance TAKE-QUALITY measures is back at the distance the take came in with. Nothing above that line changes; nothing is raised. It cannot fix a take that was **generated** over the limit (E01C L16, L18, L21): that is the TTS, and the line is regenerated as a new line (`retext`), not patched. Order and rationale: `bible/sound/SOUND.md` §3 row 7b.
+
+✂️ **End-trim (2026-10-24, replaced; offline, no model; `trim_take`).** The trial take had 2.4 s of non-speech after a 2.0 s line (0.5 s near-silence, 1.1 s low hum at -40 dB, 0.8 s hiss at -48 dB; speech at -25 dB): the model kept generating after the text ended (`research/tts-alternatives.md`). The trim finds speech from 10 ms frame energy and band flatness (100 Hz-8 kHz): speech is within 30 dB of the p95 level; hiss is a frame 24 dB under it with flatness 0.12 or more; a run after a 0.4 s gap that is 12 dB under the peak is stray. It keeps 30 ms before and 100 ms after the speech (final consonants), fades in 10 ms and out 45 ms, and adds 80 ms and 150 ms of clean silence. `uv run tools/voice.py trim <in.wav> <out.wav>` prints the record. Trial: 90 ms cut at the start and 2300 ms at the end (4.56 s to 2.40 s).
+
+🛡️ **`VOICE-TAIL`** (`gate <ep> --full`, per `<id>.trimmed.wav`): the last 100 ms must sit under -60 dBFS, and the level at the cut (from the trim record) must be more than 24 dB under the peak, else the word ending is clipped. A finding goes to the owner; it is never a retake.
+
+🎤 **Reference clips (cast 2026-10-24; recast 2026-10-27 from the owner's ear picks):** each speaker has a CC0-1.0 or verifiable public-domain clip, one clean speaker, with a provenance file in `casting.json` (`reference`); the usual length is 4.5-7.5 s. The accent comes from the clip only. Cloning a real person without consent is out. The cast today: hero-c1, extra-c3, han-c2, rival-c2, lead-c1, partner-c3, guide-c2 and the narrator **j03** (a Common Voice MSA clip the owner chose by ear on 2026-10-26; the LibriVox reading d2 that preceded it is superseded, not banned). **guide-c2 is only 3.05 s**: shorter than any other reference, so the owner's ear decides whether it holds a whole episode (flagged, not blocked). Table, measures and superseded clips: `voices/casting.md`.
+
+⭐ One model, one take per line, no checking by machine. **the owner listens.** Rules: `CLAUDE.md` "Voices". Tool: `uv run tools/voice.py <stage> <episode-dir>`. Casting: `bible/series/series/voices/casting.md` (made from `casting.json`: `uv run tools/voice.py casting`).
+
+## 🧭 The order
+
+| # | Stage | Who | Output | Must pass |
+|---|---|---|---|---|
+| 0 | Episode script written (`episodes/<ep>/script.json`) | `sw-showrunner-writer` | lines: `id, speaker, emotion, text, tts_text`, optional `style` | Arabic proofread (`arabic-english-proofreading`) |
+| 1 | `manifest` | `sw-sound-voice` | `narration-manifest.json` (style per line from the casting) | speaker cast, style legal |
+| 2 | `gate` | `sw-sound-voice` | `work/voice/<ep>/gate.json` receipt | `VOICE-CAST`, `VOICE-STYLE`, `VOICE-TEXT`, `VOICE-ONCE`, `VOICE-GATE` |
+| 3 | `voice` (dry run, then `--go`) | `sw-sound-voice`; in the daily run `daily.py` starts it (`autovoice`, the owner's choice for unattended days) | `work/voice/<ep>/<line>.wav`, `attempts.jsonl`, `seconds` in the manifest | gate receipt matches the files |
+| 4 | the owner listens | the owner | note in `bible/feedback/` | his ear |
+| 5 | `visemes` | `sw-sound-voice` (`daily.py s_voice` runs it) | `work/voice/<ep>/visemes/<line>.json` | schema `kb/quality/viseme-track.schema.json` |
+
+`script.json` fields: `text` is the caption as written (Arabic caption on its own plate, CLAUDE.md); `tts_text` is the same letters with full tashkeel on every word (NARRATION.md §11). Emotions: calm, joy, sadness, fear, anger, surprise, disgust, shame, plus `warning` (an order) and `figures` (numbers, prices, times).
+
+## 🐢 Pace per character (VOICE-PACE, 2026-10-24)
+
+The nj-writer wpm band (Arabic 110-120) is a narrator pace and is not applied to character dialogue. Each character in `voices/casting.json` has `pace.band_wpm`, taken from the `voice_pace` line of their bible (source and grade in the file; the numbers are judgement), and `pace.chatterbox` (`cfg_weight`, `exaggeration`) that `voice --go` passes per line so a future take lands in band first time (Chatterbox README tips: lower cfg_weight slows pacing, higher exaggeration speeds it up; untested guess, checked by ear). `gate --full` checks dialogue lines against the speaker's band (VOICE-PACE) and drops the narrator-band wpm finding of `voice_style_gate.py` for them; a speaker with no `pace` entry (a narrator) keeps the narrator band. Existing takes are never re-voiced to fit a band.
+
+## 🛑 The one-take rule (kept for the next engine)
+
+- A line is sent **once**. No verify, no ASR, no second model, no best-of-N, no re-voice.
+- `VOICE-ONCE` refuses a line that already has audio, and a line that already had a billed call (`attempts.jsonl`). Only an HTTP error with no `X-Generation-Id` (nothing billed) may be tried again.
+- The first failed call stops the run. It never retries by itself.
+- A partly voiced episode is the owner's decision, not a rerun.
+- The text gate re-runs after any change: `voice` refuses if the manifest or script changed since `gate` passed.
+
+## 🎭 Voices and styles
+
+- One fixed voice per character, from its CC0 reference clip (`casting.json`, 7 character voices, recast from the owner's picks 2026-10-27, see "Casting order" below) and one **firm narrator** (j03, a clean reference; earlier narrators are in the banned list below or superseded). The accent comes from the clip; where no clip carries it, it lives in the written word habits (the character's `voice.md`).
+- Styles only from `voice-styles.json`, by `good_for` / `never_for`.
+- **Narrator and characters in the calm format** ([CALM.md](CALM.md)): the narrator addresses the audience as «أنتم» and speaks at least half of the lines; a character adds short lines. A line may carry its own `tone` {exaggeration, cfg_weight} (the written object is read in a different, flat register; `voice.py line_tone`). Every take is set to one level in the mix, so narrator and characters sit together.
+- The Gemini and OpenRouter request, cost and credential sections of earlier versions are gone: no key is used, the OpenRouter key must not be used, and the engine is local.
+
+## 👂 What the owner checks by ear
+
+1. Does each voice fit the person (age, weight, warmth)? If not: change the voice in `casting.json` **before** the next episode; a voiced episode stays as it is.
+2. Do the Arabic vowels follow the marks? (Stochastic: accepted.)
+3. Does the style carry the feeling? Is the accent in the words enough?
+4. Does the mouth follow the sound (by eye on the preview)?
+
+## 👄 Lip sync
+
+`visemes` reads the wav's loudness to find when the voice sounds, maps the line's Arabic letters through the character's own `face.json` viseme `letters` (latest catalogue version) and spreads them over the voiced time (consonants held 2 frames, vowels carry the jaw). The shot reads the track with `visemeTrackAt(track, t)` in `tools/render/face.js` (contract: `tools/render/characters/README.md`). It is a close estimate, not word-by-word alignment. **Only drawn speakers get a track**: the narrator is a voice with no body and has no mouth (C6); a listener's mouth stays shut. The track is measured on the **trimmed take that is mixed**, and a shot refuses a missing or stale track (`LIPSYNC-NO-TRACK`, `LIPSYNC-STALE-TRACK`); the rig gate holds the mouth to it (`LIPSYNC-ACTIVE`, `LIPSYNC-SILENT`).
+
+## 📝 Feedback
+
+the owner's note per line or per voice goes into `bible/feedback/` with the line id. A fix changes the text, casting or style **for the next episode**; a voiced line is not re-voiced.
+
+## ✅ Start voicing
+
+1. Every speaker has a clean CC0 reference clip in `casting.json` (`refcheck` passes, not on the banned list).
+2. `uv run tools/voice.py manifest <ep>` then `gate <ep>` (must print `OK`). Run the plan check first ([CALM.md](CALM.md) ladder): a plan fault found after the voice costs the voice.
+3. `uv run tools/voice.py voice <ep>` (dry run), then `voice <ep> --go`, then `measure`, `gate <ep> --full`, `visemes`.
+
+## 🩹 Healing (optional stage, on by default)
+
+The voice engine is Chatterbox (Gemini banned, the owner 2026-10-23) and all seven characters plus the narrator have clean references. A heal round covers casting, style, manifest and gate faults (CQ-V1), never re-voicing a line.
+- After the gates: `uv run tools/heal.py prepare <dir> --kind voice` writes `heal/critic-brief.md` and, if anything failed, `heal/fix-brief.md` in the episode voice folder. A Sonnet critic answers `kb/quality/critic-checklist.md` into `heal/critic.json`; `heal.py classify` maps each fault to a class, a fix place and a fixer (`kb/quality/heal-playbooks.md`); the fixer repairs the root cause, records it with `heal.py round`, and the stage reruns. Up to 3 rounds; then stop and report.
+- the owner sees this only when `uv run tools/heal.py status <dir>` says ready: all gates pass, critic score 9 or more of 10, guard clean. Never loosen a gate, edit a trace or hide a fault; the guard refuses it.
+- Then `heal.py learn` writes each healed fault to `kb/lessons/ledger.jsonl`. Full loop: [HEAL.md](HEAL.md).
+
+## 🪪 Casting order (owner, 2026-10-26/27: pick by ear, cast only what is clean)
+
+1. **Pick.** The cast-scout judge ranks candidates per character from Common Voice (`work/cast-scout/judge/ranking.json`); the owner hears the top ones and names his pick per character (`PICKS-2026-10-27.json`). The ranking never listened; it only orders.
+2. **Clean the reference first.** Every pick gets the edge cleaner (`voice_edges.clean`, the j03 method): room tone before the first word and after the last is cut, guards kept, speech samples bit-identical, int16 written. Logged in the provenance.
+3. **Measure the cleaned reference, not the judged clip.** A judge clip can pass REF-QUALITY only because the room tone at its edges flatters the floor and the SNR. The 2026-10-27 case: extra-c2 judged -69.2 dBFS / 51.5 dB, cleaned -50.8 / 33.1; han-c4 judged -56.2 / 35.7, cleaned -48.8 / 28.2 (and reverberant, 0.16 s); guide-c1 judged -63.7 / 47.3, cleaned -46.6 / 30.2 (limits -53.0 dBFS and 35 dB). A pick that fails after the clean is **not cast** and no record changes.
+4. **Walk the ranking.** `voices/audit/cast_next.py` takes the judge order and casts the first candidate that passes after the same clean: extra-c2 -> **extra-c3**, han-c4 -> han-c1 (fails) -> **han-c2**, guide-c1 -> **guide-c2**. The walk is re-measured on every run and kept in `voices/audit/cast-next-clean-2026-10-27.json`.
+5. **Fit the gen cap** from the candidate's 3 judge takes (letters per second of the speech span), keyed to the cleaned reference hash. Then `uv run tools/voice.py casting` regenerates `casting.md`.
+6. **Flag, do not block:** a very short reference (guide-c2, 3.05 s) goes to the owner's ear. A superseded reference stays on disk (`*.rejected-*`, provenance `superseded`); nothing is deleted.
+
+Superseded 2026-10-27 (kept, not banned; `voices/provenance/<char>-superseded-2026-10-27.json`): hero `common_voice_sw_30711853`, extra `ar_19424972`, han `fr_19653376`, rival `en_21786428`, lead `fi_38043835`, partner `es_28883806`, guide `hi_37579893`; the narrator d2 and Kalila readings (2026-10-26). Picks that failed the clean and were not cast: extra-c2, han-c4, guide-c1 (`*-pick-2026-10-27-*-not-cast.json`). Tools: `voices/audit/cast_picks.py` (the picks) and `cast_next.py` (the walk).
+
+## 🧼 REF-QUALITY: a reference must be clean before it is cloned (owner, 2026-10-24)
+
+the owner approved the voices of rival, lead, partner and guide and rejected hero, extra and han ("a lot of noise, not clear"): Chatterbox copies the reference's noise floor, bandwidth, squashed level and clipping into every take. `tools/voice.py` measures every reference offline (no model) and `casting` and `voice` refuse a clip that breaks a limit set from the four approved clips (`REFQ`): at least 2 up-votes and no down-vote, no sample at full scale, floor at most -53 dBFS, SNR at least 35 dB, crest (peak minus median speech) at least 18 dB, energy above 8 kHz at least -58 dB against 0.1-1 kHz (muffled), 20 dB decay at most 0.15 s (reverb). Check a candidate with `uv run tools/voice.py refcheck <ref.wav> <provenance.json>`; rank many with `work/tts-refs/_tools/cand_rank.py`. Evidence and the recast clips: `research/tts-alternatives.md`. The approved takes were made with `cfg_weight` 0.5 and `exaggeration` 0.5 (the README defaults), so every character in `casting.json` uses those; the pace bands of rival, partner and guide are centred on their approved takes.
+
+## 🚫 Banned voices, REF-QUALITY 2026-10-25 and TAKE-QUALITY (owner, 2026-10-25)
+
+the owner banned the first narrator (reference `common_voice_ar_21519152`: noisy, "not good data") and every voice whose reference has noise or similar issues.
+- **Banned list** `bible/voices-banned.json` (records are kept, never deleted). `reference_for` refuses a reference whose clip id, mp3 hash or speaker id is listed (`VOICE-BANNED-REF`); `refcheck <wav> <provenance.json>` reports it too. Never cast a listed voice again, in any series.
+- **What REF-QUALITY missed** (numbers: `research/narrator-ban-2026-10-25.md`): the clip had been noise-gated or denoised. Its pauses were exact digital silence (6.4% of samples are exactly 0, against 0.2 to 0.9% in every approved clip; floor -88.4 dBFS against -55.6 to -62.8), which the old limits read as the best floor and SNR (66.7 dB) ever seen, while the speech is boxy (power-weighted centroid 334 Hz against 475 to 1043). The old pick ranked by "darkest tone and cleanest floor", which rewarded exactly that. New `REFQ` limits: `max_zero_frac` 0.02, `min_floor_dbfs` -75 (a floor below it is processing, not a microphone), `min_centroid_hz` 400, `max_hum_db` 40 (hum is not what the owner hears: the approved recast han has 31 dB).
+- **TAKE-QUALITY** (`gate --full`, per `<id>.trimmed.wav`, offline, no model; `TAKEQ`): pauses inside the take no louder than -24 dB under the voice, speech centroid at least 400 Hz, at most 20 clipped samples, no hum over 40 dB, no run of 20 ms of exact zeros inside the speech (a gate chopping words). Calibrated so all 12 takes the owner approved pass; 6 of the 10 banned-narrator takes failed it. A finding goes to the owner and the Lead; it is never a retake.
+- **A new voice is a new take.** `uv run tools/voice.py supersede <episode-dir> --speaker narrator --reason "..."` moves the takes a banned voice made to `<work>-superseded-<speaker>/` (kept) and writes `supersede.jsonl`; it is refused unless the casting lists a banned reference for that speaker and the current reference is clean and not banned. After it, `voice --go` voices only the lines that have no take; settled takes of other speakers stay. Each new take logs the reference clip and hash in `attempts.jsonl`.
+- **Licences:** a reference is CC0-1.0 or `PUBLIC-DOMAIN` (verifiable public domain, e.g. a LibriVox reading) and a public-domain reference needs `source_url` and `licence_evidence_url` in its provenance. A published audiobook has no community votes (`validation: published-audiobook`).
+
+## ✏️ New words are a new line (`retext`, the owner 2026-10-25)
+
+A take belongs to the text it voiced. When the writer changes a line's WORDS after it was voiced (E01 narrator, second person plural «أنتم»), `uv run tools/voice.py retext <episode-dir> --reason "..." [--baseline <manifest-when-voiced.json>]` sets the old take aside in `<work>-superseded-text/` (kept, never deleted) for every line whose `tts_text` differs from the text its take voiced, and for those lines only. Unchanged lines keep their takes (VOICE-ONCE still refuses them). The voiced text is `tts_sha256` in `attempts.jsonl` (logged on every take from 2026-10-25); a take made before that needs `--baseline`, the manifest as it was when it was voiced. Then `manifest`, `gate`, `voice --go` (one take per new line), `measure`, `gate --full`, `visemes`. This is not a re-voice: nothing is voiced twice from the same text.
+

@@ -1,0 +1,35 @@
+{
+ "id": "SHOT_ID",
+ "title": "SHOT_ID (multi-actor template: one actor from the smoke shot; add a second entry to actors[], a characters[] rig entry, draw_order and actor_interactions)",
+ "fps": 24,
+ "duration_s": 2,
+ "canvas": [1080, 1920],
+ "world": "world-a",
+ "actors": [
+  {
+   "id": "partner",
+   "module": "partner",
+   "z": 2.56,
+   "layer": 0,
+   "catalogue_url": "/catalogue/characters/partner/",
+   "catalogue": {
+    "model": "v1/model/mannequin.json",
+    "face": "v2/face/face.json",
+    "hand_model": "v1/hands/hand-model.json",
+    "grip_dir": "v2/hands/",
+    "grips": ["give-open-L", "wall-flat-R", "hook-ledge-R"],
+    "expression_dir": "v1/expressions/",
+    "expressions": []
+   },
+   "uses": {"refs": ["partner@1.0", "partner/physics/partner-v1@1.0", "partner/model@1.0", "partner/hand-model@1.0"]}
+  }
+ ],
+ "new": ["partner/pose/offer-bread@1.0"],
+ "cuts": [],
+ "smears": [],
+ "fonts": ["700 40px thmanyahseriftext", "700 20px thmanyahsans", "500 16px thmanyahsans"],
+ "scene_files": ["scene/main.js"],
+ "library": ["core.js", "geom2d.js", "worlds/world-a.js", "face.js", "hands.js", "actors.js", "@scene", "trace-multi.js", "bootstrap-multi.js"],
+ "record": {"fps": 24, "codec": "h264_nvenc", "size": "1080x1920"},
+ "review": {"hands_every": 3, "faces_every": 6, "props_every": 6, "frames_every": 6}
+}

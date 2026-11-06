@@ -1,0 +1,19 @@
+{
+  "_why": "Example only. Copy to data/seo/keywords.json and write your own series keywords. tools/seo.py falls back to this file when data/seo/keywords.json is missing.",
+  "series": "My Story Series",
+  "hashtags": {"instagram": ["#story", "#animation", "#arabic"], "facebook": ["#story", "#animation"], "youtube": ["#story", "#animation", "#shorts"]},
+  "hashtag_test_next": {"what": "Next hashtag test to run.", "evidence": "Where the current choice came from."},
+  "youtube_tags": ["story", "animated story", "arabic story", "interactive story", "mystery"],
+  "youtube_tags_max_chars": 500,
+  "youtube_keyword_line": "animated story, interactive story, mystery",
+  "youtube_category_id": "1",
+  "youtube_license": "youtube",
+  "channel_keywords": "animated story interactive mystery",
+  "instagram_name": "My Story Series",
+  "facebook_name": "My Story Series",
+  "channel_description": "An animated interactive story series. Viewers vote what happens next.",
+  "channel_language": "ar",
+  "playlist_description": "Every episode in order.",
+  "playlists_private": [],
+  "facebook_about": "An animated interactive story series."
+}

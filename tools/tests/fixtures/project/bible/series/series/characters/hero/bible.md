@@ -1,0 +1,3 @@
+- name: Hero (neutral fixture)
+- voice_signature_words: «شيكامو» (shikamoo, respect greeting for elders); «ويش» (wesh, what); «واجد» (wajid, a lot); «زين» (zain, good); «موانا حبيبي» (mwana habibi, my child); «بولي» (poli, slowly)
+- next: x

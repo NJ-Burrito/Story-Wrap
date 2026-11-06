@@ -1,0 +1,3 @@
+- name: Han (neutral fixture)
+- voice_signature_words: «آيغو» (aigo, oh my)
+- next: x

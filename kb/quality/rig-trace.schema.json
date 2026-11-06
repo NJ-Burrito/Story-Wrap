@@ -1,0 +1,780 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "story-wrap/rig-trace",
+ "title": "Story-Wrap per-frame rig and face trace (read by tools/quality_gate.py rig <trace> [<shot-spec>])",
+ "description": "Written by the renderer's rigTrace(t) for every frame (or a sampled subset, at least every 2nd frame). Pixels are the output canvas (1080x1920). Angles are degrees, 0 = neutral; joint keys are profile limit ids with an optional _L/_R suffix (elbow_flex_L). Face controls are normalised 0..1 (eye_x, eye_y -1..1). All fields except f and t are optional per frame; a check skips a frame that lacks its inputs, but the check ids in kb/quality/gate-spec.md say which fields each one needs.",
+ "type": "object",
+ "required": [
+  "fps",
+  "characters"
+ ],
+ "properties": {
+  "fps": {
+   "type": "number"
+  },
+  "canvas": {
+   "type": "object",
+   "properties": {
+    "w": {
+     "type": "number"
+    },
+    "h": {
+     "type": "number"
+    }
+   }
+  },
+  "characters": {
+   "type": "object",
+   "description": "character id (matches shot-spec characters[].id) -> trace",
+   "additionalProperties": {
+    "type": "object",
+    "required": [
+     "frames"
+    ],
+    "properties": {
+     "profile": {
+      "type": "string",
+      "description": "Overrides the spec's physics_profile."
+     },
+     "head_unit_px": {
+      "type": "number"
+     },
+     "rest_shoulder_y_px": {
+      "type": "number",
+      "description": "optional: the shoulder y at rest, body px, up negative; RIG-SHOULDER falls back to the median over the lowest third of elevations"
+     },
+     "rest_lengths_px": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "number"
+      },
+      "description": "segment name -> rest length (RIG-SEGLEN)"
+     },
+     "frames": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "f",
+        "t"
+       ],
+       "properties": {
+        "f": {
+         "type": "integer"
+        },
+        "t": {
+         "type": "number",
+         "description": "seconds"
+        },
+        "joints": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "number"
+         },
+         "description": "limit id (_L/_R) -> angle in degrees (RIG-LIMITS)"
+        },
+        "bend_side": {
+         "type": "object",
+         "additionalProperties": {
+          "enum": [
+           -1,
+           0,
+           1
+          ]
+         },
+         "description": "elbow_L / knee_R -> side the hinge bends toward (RIG-HINGE)"
+        },
+        "segments_px": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "number"
+         },
+         "description": "segment name -> current length (RIG-SEGLEN)"
+        },
+        "anchors": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "array",
+          "items": {
+           "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+         },
+         "description": "named points: shoulder_L/R, torso_center, parent anchors of attachments (RIG-SHOULDER, RIG-ATTACH)"
+        },
+        "torso_half_width_px": {
+         "type": "number",
+         "description": "half width of the torso at shoulder height"
+        },
+        "clavicle_y": {
+         "type": "number"
+        },
+        "neck_length_px": {
+         "type": "number"
+        },
+        "arm_elevation_deg": {
+         "description": "humeral elevation per arm; RIG-SHOULDER derives the allowed shoulder point from it (scapulohumeral rhythm)",
+         "type": "object",
+         "properties": {
+          "L": {
+           "type": "number"
+          },
+          "R": {
+           "type": "number"
+          }
+         }
+        },
+        "shoulder_lift_px": {
+         "type": "object",
+         "properties": {
+          "L": {
+           "type": "number"
+          },
+          "R": {
+           "type": "number"
+          }
+         },
+         "description": "shoulder point rise vs rest (RIG-SHOULDER-RIDES)"
+        },
+        "contact_points": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "array",
+          "items": {
+           "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+         },
+         "description": "child contact points named in shot-spec attachments[].contact_points"
+        },
+        "contacts": {
+         "type": "array",
+         "description": "declared hand/tool contacts active in this frame (RIG-CONTACT-GAP, RIG-REACH)",
+         "items": {
+          "type": "object",
+          "required": [
+           "id",
+           "point",
+           "target",
+           "limb_len_px"
+          ],
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "point": {
+            "type": "array",
+            "items": {
+             "type": "number"
+            }
+           },
+           "target": {
+            "type": "array",
+            "items": {
+             "type": "number"
+            }
+           },
+           "shoulder": {
+            "type": "array",
+            "items": {
+             "type": "number"
+            }
+           },
+           "limb_len_px": {
+            "type": "number",
+            "description": "upper arm + forearm"
+           }
+          }
+         }
+        },
+        "layer_order": {
+         "type": "object",
+         "required": [
+          "angle",
+          "order"
+         ],
+         "properties": {
+          "angle": {
+           "type": "string"
+          },
+          "order": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "back to front"
+          }
+         }
+        },
+        "com": {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 2,
+         "maxItems": 2
+        },
+        "support_x": {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 2,
+         "maxItems": 2
+        },
+        "face": {
+         "type": "object",
+         "properties": {
+          "eye_x": {
+           "type": "number"
+          },
+          "eye_y": {
+           "type": "number"
+          },
+          "head_yaw": {
+           "type": "number",
+           "description": "degrees"
+          },
+          "blink": {
+           "type": "number",
+           "description": "0 open .. 1 closed"
+          },
+          "lid_upper": {
+           "type": "number"
+          },
+          "lid_lower": {
+           "type": "number"
+          },
+          "iris_r": {
+           "type": "number"
+          },
+          "brow_L": {
+           "type": "number"
+          },
+          "brow_R": {
+           "type": "number"
+          },
+          "mouth_open": {
+           "type": "number"
+          },
+          "viseme": {
+           "type": ["string", "null"],
+           "description": "id of the viseme driving the mouth this frame (V0 rest .. V9), null when no voice track does (C6)"
+          },
+          "viseme_w": {
+           "type": "number",
+           "description": "weight 0..1 of that viseme this frame"
+          },
+          "mouth": {
+           "type": "object",
+           "description": "the mouth shape as drawn this frame (C6, LIPSYNC-ACTIVE / LIPSYNC-SILENT): open, w (width), round, teeth, press",
+           "properties": {"open": {"type": "number"}, "w": {"type": "number"}, "round": {"type": "number"}, "teeth": {"type": "number"}, "press": {"type": "number"}}
+          },
+          "corner_L": {
+           "type": "number"
+          },
+          "corner_R": {
+           "type": "number"
+          },
+          "gaze_target": {
+           "type": "string"
+          },
+          "controls": {
+           "type": "object",
+           "additionalProperties": {
+            "type": "number"
+           },
+           "description": "AU id -> value 0..1 (RIG-FACE)"
+          }
+         }
+        },
+        "line_mask": {
+         "type": "string",
+         "description": "PNG of this character's ink strokes only (ink = alpha or luma > 127, no fills), canvas-aligned (any uniform scale), relative to the trace file; sampled every 6th frame is fine (SEAM-CROSS, SEAM-HEADNECK, R-381)"
+        },
+        "seams": {
+         "type": "array",
+         "description": "joint regions where two body parts meet, per sampled frame (SEAM, R-381)",
+         "items": {
+          "type": "object",
+          "required": [
+           "id",
+           "parts",
+           "at"
+          ],
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "parts": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 2
+           },
+           "at": {
+            "type": "array",
+            "items": {
+             "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "joint anchor, canvas px"
+           },
+           "from": {
+            "type": "array",
+            "items": {
+             "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "proximal bone end (e.g. shoulder)"
+           },
+           "to": {
+            "type": "array",
+            "items": {
+             "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "distal bone end (e.g. elbow); to minus from is the bone axis"
+           },
+           "axis": {
+            "type": "array",
+            "items": {
+             "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "bone direction, used instead of from/to"
+           },
+           "r_px": {
+            "type": "number",
+            "description": "disc radius; default 0.12 head units"
+           },
+           "kind": {
+            "enum": [
+             "joint",
+             "head-neck"
+            ],
+            "description": "head-neck is the head-to-neck/shoulder join: needs via and cannot be waived by overlaps[]"
+           },
+           "via": {
+            "type": "string",
+            "description": "head-neck only: the neck shape or garment that connects head and body (neck, collar, hijab)"
+           }
+          }
+         }
+        },
+        "overlaps": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "description": "seam ids (or 'partA|partB') whose line is a real overlap, fold or crease in this frame (SEAM-CROSS waived)"
+        },
+        "cut": {
+         "type": "boolean",
+         "description": "this frame is the first of a new shot (HAND-TOPO and HAND-SWAP jump limits do not apply across a hard cut)"
+        },
+        "smear": {
+         "type": "boolean",
+         "description": "declared smear/impact frame: single-frame hand shape jumps are intended (HAND-TOPO, HAND-SWAP waived for this frame)"
+        },
+        "hand_pose": {
+         "type": "object",
+         "description": "per hand, keys L and R (HAND-*, LAYER-GRIP, R-383..R-386, R-392). L is the character's own left.",
+         "additionalProperties": {
+          "type": "object",
+          "required": [
+           "id"
+          ],
+          "properties": {
+           "id": {
+            "type": "string",
+            "description": "catalogue grip id actually drawn this frame (the dominant one while blending)"
+           },
+           "mirrored": {
+            "type": "boolean",
+            "description": "the grip was authored for the other hand and is mirrored on purpose (HAND-SIDE)"
+           },
+           "contact_kind": {
+            "type": "string",
+            "description": "which hand point is steered onto the target: pen-tip, pinch, heel, palm ..."
+           },
+           "pinch": {
+            "type": "boolean",
+            "description": "thumb is solved onto the index pad this frame"
+           },
+           "blend": {
+            "type": "object",
+            "description": "present on every in-between frame of a grip, contact_kind or pinch change; k rises 0..1",
+            "properties": {
+             "to_id": {
+              "type": "string"
+             },
+             "to_kind": {
+              "type": "string"
+             },
+             "k": {
+              "type": "number"
+             }
+            }
+           },
+           "topo": {
+            "type": "object",
+            "properties": {
+             "fingers": {
+              "type": "integer"
+             },
+             "order": {
+              "type": "array",
+              "items": {
+               "type": "string"
+              },
+              "description": "thumb, index, middle, ring, little"
+             }
+            }
+           },
+           "fingers": {
+            "type": "object",
+            "additionalProperties": {
+             "type": "array",
+             "items": {
+              "type": "number"
+             },
+             "description": "joint angles in degrees, proximal to distal (mcp, pip, dip)"
+            }
+           },
+           "orient_deg": {
+            "type": "number",
+            "description": "hand axis angle on the canvas, degrees"
+           },
+           "wrist_px": {
+            "type": "array",
+            "items": {
+             "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "wrist point, canvas px"
+           },
+           "holding": {
+            "type": "string",
+            "description": "prop id the hand holds this frame (needs grip_layers)"
+           },
+           "grip_layers": {
+            "type": "object",
+            "additionalProperties": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             }
+            },
+            "description": "camera angle -> part ids back to front, declared by the catalogue grip (LAYER-GRIP)"
+           },
+           "grip_contacts": {
+            "type": "object",
+            "additionalProperties": {
+             "type": "number"
+            },
+            "description": "digit (thumb, index, middle) -> px distance from its pad to the held object (LAYER-GRIP)"
+           }
+          }
+         }
+        },
+        "props": {
+         "type": "array",
+         "description": "two-sided props visible or held this frame (PROP-FACE, R-387, R-388)",
+         "items": {
+          "type": "object",
+          "required": [
+           "id",
+           "faces",
+           "facing"
+          ],
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "faces": {
+            "type": "object",
+            "description": "face id (front, back) -> what is printed there",
+            "additionalProperties": {
+             "type": "object"
+            }
+           },
+           "facing": {
+            "type": "string",
+            "description": "the face the camera sees this frame"
+           },
+           "quad_px": {
+            "type": "array",
+            "items": {
+             "type": "array",
+             "items": {
+              "type": "number"
+             }
+            },
+            "description": "outline of the prop on the canvas"
+           },
+           "marks": {
+            "type": "array",
+            "items": {
+             "type": "object",
+             "required": [
+              "id",
+              "face"
+             ],
+             "properties": {
+              "id": {
+               "type": "string"
+              },
+              "face": {
+               "type": "string"
+              },
+              "kind": {
+               "enum": [
+                "ink",
+                "text",
+                "print"
+               ]
+              },
+              "drawn": {
+               "type": "boolean"
+              }
+             }
+            }
+           }
+          }
+         }
+        },
+        "writing": {
+         "type": "object",
+         "description": "pen-on-paper action this frame (WRITE-REVEAL, NIB-CONTACT, PROP-FACE; R-388..R-391)",
+         "properties": {
+          "prop": {
+           "type": "string"
+          },
+          "active": {
+           "type": "boolean",
+           "description": "nib is in contact and moving to make ink"
+          },
+          "direction": {
+           "enum": [
+            "rtl",
+            "ltr"
+           ]
+          },
+          "nib_face": {
+           "type": "string",
+           "description": "the face of the prop the nib touches, from the nib's side of the paper plane"
+          },
+          "nib_px": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           },
+           "minItems": 2,
+           "maxItems": 2
+          },
+          "paper_px": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           },
+           "minItems": 2,
+           "maxItems": 2,
+           "description": "nearest point of the paper surface to the nib, canvas px"
+          },
+          "nib_gap_px": {
+           "type": "number"
+          },
+          "on_paper": {
+           "type": "boolean"
+          },
+          "drawn_to_px": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           },
+           "minItems": 2,
+           "maxItems": 2,
+           "description": "the leading end of the revealed ink"
+          },
+          "ink_len_px": {
+           "type": "number",
+           "description": "total revealed ink length so far, in canvas px (non-decreasing)"
+          },
+          "erase": {
+           "type": "boolean"
+          }
+         }
+        },
+        "shadow_mask": {
+         "type": "string",
+         "description": "1-bit PNG of this character's cast shadow, relative to the trace file; sampled (e.g. every 6th frame) is fine (RIG-SHADOW-HOLES)"
+        }
+       }
+      }
+     },
+     "module": {
+      "type": "string",
+      "description": "character module id of this actor (multi-actor traces)"
+     }
+    }
+   }
+  },
+  "scene": {
+   "type": "object",
+   "description": "Multi-actor shots (trace-multi.js): what no single actor owns. characters{} is keyed by actor id (joints, hand_pose, face, seams, shadow_mask, line_mask, contact_points, anchors, layer_order per actor); masks are masks/shadow/<id>/NNNN.png and masks/line/<id>/NNNN.png. Required when there is more than one character (ACTOR-TRACE).",
+   "required": [
+    "actors",
+    "frames"
+   ],
+   "properties": {
+    "actors": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "id",
+       "module"
+      ],
+      "properties": {
+       "id": {
+        "type": "string"
+       },
+       "module": {
+        "type": "string"
+       },
+       "z": {
+        "type": "number"
+       },
+       "layer": {
+        "type": "integer"
+       }
+      }
+     }
+    },
+    "frames": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "f",
+       "present",
+       "draw_order",
+       "depth"
+      ],
+      "properties": {
+       "f": {
+        "type": "integer"
+       },
+       "t": {
+        "type": "number"
+       },
+       "present": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "description": "actor ids drawn this frame; an actor's frames[] holds exactly these frames"
+       },
+       "draw_order": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "description": "the DRAW CALLS in the order they ran, back to front: 'id:body' and 'id:arms' once per present actor (ACTOR-OCCLUSION: equals the spec's draw_order, follows depth, no undeclared interleave)"
+       },
+       "depth": {
+        "type": "object",
+        "additionalProperties": {
+         "type": "number"
+        },
+        "description": "actor id -> depth_z this frame (metres, larger = farther)"
+       },
+       "props": {
+        "type": "array",
+        "description": "objects handed between actors (HANDOVER, ACTOR-CONTACT)",
+        "items": {
+         "type": "object",
+         "required": [
+          "id",
+          "pos"
+         ],
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "pos": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           },
+           "description": "canvas px"
+          },
+          "parent": {
+           "type": [
+            "object",
+            "null"
+           ],
+           "properties": {
+            "actor": {
+             "type": "string"
+            },
+            "hand": {
+             "enum": [
+              "L",
+              "R"
+             ]
+            }
+           },
+           "description": "the hand the prop is attached to this frame, or null (on a surface)"
+          },
+          "hands": {
+           "type": "array",
+           "description": "hands on the prop this frame with the measured gap between the hand's contact point and the prop's grip point",
+           "items": {
+            "type": "object",
+            "properties": {
+             "actor": {
+              "type": "string"
+             },
+             "hand": {
+              "enum": [
+               "L",
+               "R"
+              ]
+             },
+             "gap_px": {
+              "type": "number"
+             }
+            }
+           }
+          },
+          "touch": {
+           "type": "array",
+           "items": {
+            "type": "array",
+            "items": {
+             "type": "number"
+            }
+           },
+           "description": "points on the object a hand may touch (default: pos)"
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

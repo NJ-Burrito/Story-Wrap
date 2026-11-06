@@ -1,0 +1,108 @@
+{
+  "note": "Neutral test fixture (Series A). A real project keeps its own bible/series/<series>/glossary.json.",
+  "entries": [
+    {
+      "word": "شيكامو",
+      "language": "Swahili",
+      "meaning_ar": "تحية احترام للكبار",
+      "character": "hero"
+    },
+    {
+      "word": "ويش",
+      "language": "Gulf Arabic",
+      "meaning_ar": "ماذا",
+      "character": "hero"
+    },
+    {
+      "word": "واجد",
+      "language": "Gulf Arabic",
+      "meaning_ar": "كثير",
+      "character": "hero"
+    },
+    {
+      "word": "زين",
+      "language": "Gulf Arabic",
+      "meaning_ar": "جيد",
+      "character": "hero"
+    },
+    {
+      "word": "موانا حبيبي",
+      "language": "Swahili",
+      "meaning_ar": "يا ولدي",
+      "character": "hero"
+    },
+    {
+      "word": "بولي",
+      "language": "Swahili",
+      "meaning_ar": "ببطء",
+      "character": "hero"
+    },
+    {
+      "word": "أري",
+      "language": "Gujarati",
+      "meaning_ar": "يا للعجب",
+      "character": "guide"
+    },
+    {
+      "word": "تشالو",
+      "language": "Gujarati",
+      "meaning_ar": "هيا بنا",
+      "character": "guide"
+    },
+    {
+      "word": "كاكا",
+      "language": "Gujarati",
+      "meaning_ar": "عمي",
+      "character": "guide"
+    },
+    {
+      "word": "بولي بولي",
+      "language": "Swahili",
+      "meaning_ar": "شيئا فشيئا",
+      "character": "lead"
+    },
+    {
+      "word": "نو",
+      "language": "Spanish",
+      "meaning_ar": "لا",
+      "character": "partner"
+    },
+    {
+      "word": "فويرا",
+      "language": "Spanish",
+      "meaning_ar": "خارجا",
+      "character": "partner"
+    },
+    {
+      "word": "آيغو",
+      "language": "Korean",
+      "meaning_ar": "يا إلهي",
+      "character": "han"
+    },
+    {
+      "word": "ديوب",
+      "language": "Wolof",
+      "meaning_ar": "تحية",
+      "character": "extra"
+    },
+    {
+      "word": "بور لو دوسييه",
+      "language": "French",
+      "meaning_ar": "من أجل الملف",
+      "character": "extra"
+    }
+  ],
+  "arabic_words": [
+    "يا عم"
+  ],
+  "names": [
+    "منى"
+  ],
+  "loanwords": [
+    {
+      "word": "انيميشن",
+      "meaning_ar": "رسوم متحركة",
+      "language": "English"
+    }
+  ]
+}

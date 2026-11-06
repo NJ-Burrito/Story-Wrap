@@ -1,0 +1,42 @@
+# secrets and credentials
+.env
+*.env
+!config/*.example.env
+*token*.json
+*client*.json
+*.pem
+*.key
+# your projects and generated data
+/work/
+/renders/
+/episodes/
+/series/
+/data/
+/catalogue/
+/reference/
+/research/
+/bible/series/
+/handoff.md
+board/data/*
+!board/data/.gitkeep
+board/schedule.json
+board/config.json
+assets/fonts/*.woff2
+assets/fonts/*.ttf
+assets/fonts/*.otf
+assets/audio/
+# media
+*.mp4
+*.wav
+*.mp3
+*.mov
+# python / tooling
+.venv/
+.cache/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+dist/
+# local reports
+SPLIT-REPORT.md

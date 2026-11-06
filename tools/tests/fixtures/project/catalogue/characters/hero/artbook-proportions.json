@@ -1,0 +1,16 @@
+{
+ "note": "Neutral test fixture, derived from tests/fixtures/art_records.json (a real project derives this file from its approved sheets with tools/artbook_proportions.py).",
+ "approved_sheet_version": "fixture",
+ "tolerance_pct": 8.0,
+ "per_head": {
+  "hand_len_hu": 0.841,
+  "hand_w_hu": 0.2648,
+  "finger_r_hu": 0.046,
+  "nose_w_hu": 0.092,
+  "nose_len_hu": 0.155,
+  "lips_w_hu": 0.176,
+  "lips_t_hu": 0.07,
+  "eye_w_hu": 0.088,
+  "eye_h_hu": 0.044
+ }
+}

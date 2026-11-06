@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "viseme-track/1",
+  "description": "Mouth timing for ONE voiced line. Written by `uv run tools/voice.py visemes <episode>` to work/voice/<episode>/visemes/<line-id>.json from the audio envelope and the line's Arabic letters (no model). Read by visemeTrackAt(track, t) in tools/render/face.js; t is seconds from the start of the line's audio. A shot places the line at a start time and passes s.viseme = visemeTrackAt(track, shotT - lineStart). Viseme ids are the character's own (catalogue/characters/<id>/<latest>/face/face.json, ids V0..V9); V0 is rest. Each id is held until the next key; the last key is V0 at the end of speech.",
+  "type": "object",
+  "required": ["format", "line", "character", "face", "fps", "duration_s", "ramp_s", "source", "keys"],
+  "properties": {
+    "format": {"const": "viseme-track/1"},
+    "line": {"type": "string"},
+    "character": {"type": "string"},
+    "face": {"type": "string", "description": "<character>/<catalogue version> whose face.json letters map was used"},
+    "fps": {"type": "number", "description": "frame rate the minimum hold was computed at (consonant shapes hold >= 2 frames)"},
+    "duration_s": {"type": "number", "description": "length of the audio file"},
+    "ramp_s": {"type": "number", "description": "fade of the mouth weight w at the start and end of speech"},
+    "source": {"type": "object", "required": ["audio_sha256", "text_sha256", "method"],
+      "properties": {"audio_sha256": {"type": "string"}, "text_sha256": {"type": "string"}, "method": {"type": "string"}}},
+    "keys": {"type": "array", "minItems": 2, "items": {"type": "object", "required": ["t", "id"],
+      "properties": {"t": {"type": "number", "minimum": 0}, "id": {"type": "string", "pattern": "^V[0-9A-Z]+$"}}}}
+  }
+}

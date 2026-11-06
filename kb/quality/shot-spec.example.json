@@ -1,0 +1,693 @@
+{
+ "episode": "EXAMPLE passing spec v2 (template, not an episode)",
+ "fps": 24,
+ "characters": [
+  {
+   "id": "hero",
+   "parts": [
+    {
+     "name": "head",
+     "pivot": "neck",
+     "own_curve": true,
+     "follows": "torso",
+     "lag_frames": 2
+    },
+    {
+     "name": "torso",
+     "pivot": "pelvis",
+     "own_curve": true
+    },
+    {
+     "name": "pelvis",
+     "pivot": "root",
+     "own_curve": true
+    },
+    {
+     "name": "upper-arm-L",
+     "pivot": "shoulder",
+     "own_curve": true,
+     "follows": "torso",
+     "lag_frames": 1
+    },
+    {
+     "name": "forearm-L",
+     "pivot": "elbow",
+     "own_curve": true,
+     "follows": "upper-arm-L",
+     "lag_frames": 2
+    },
+    {
+     "name": "upper-arm-R",
+     "pivot": "shoulder",
+     "own_curve": true,
+     "follows": "torso",
+     "lag_frames": 1
+    },
+    {
+     "name": "forearm-R",
+     "pivot": "elbow",
+     "own_curve": true,
+     "follows": "upper-arm-R",
+     "lag_frames": 3
+    },
+    {
+     "name": "thigh-L",
+     "pivot": "hip",
+     "own_curve": true
+    },
+    {
+     "name": "shin-L",
+     "pivot": "knee",
+     "own_curve": true,
+     "follows": "thigh-L",
+     "lag_frames": 1
+    },
+    {
+     "name": "thigh-R",
+     "pivot": "hip",
+     "own_curve": true
+    },
+    {
+     "name": "shin-R",
+     "pivot": "knee",
+     "own_curve": true,
+     "follows": "thigh-R",
+     "lag_frames": 1
+    },
+    {
+     "name": "scarf",
+     "pivot": "neck",
+     "own_curve": true,
+     "follows": "head",
+     "lag_frames": 4
+    },
+    {
+     "name": "hair",
+     "pivot": "scalp",
+     "own_curve": true,
+     "follows": "head",
+     "lag_frames": 3,
+     "under_garment": true
+    },
+    {
+     "name": "palm-R",
+     "pivot": "wrist-R",
+     "own_curve": true,
+     "follows": "forearm-R",
+     "lag_frames": 1,
+     "hand_grip": "pen"
+    },
+    {
+     "name": "thumb-R",
+     "pivot": "palm-R",
+     "own_curve": true
+    },
+    {
+     "name": "finger-index-R",
+     "pivot": "palm-R",
+     "own_curve": true
+    }
+   ],
+   "physics_profile": "_human-default",
+   "model_ref": {
+    "id": "hero",
+    "version": "1.0"
+   },
+   "rest_proportions": {
+    "head_h": 34,
+    "shoulder_w": 66,
+    "neck_len": 10,
+    "upper_arm": 52,
+    "forearm": 40,
+    "hand": 30,
+    "thigh": 80,
+    "shank": 80
+   },
+   "anchors": {
+    "clavicle_L": [
+     -33,
+     -10
+    ],
+    "clavicle_R": [
+     33,
+     -10
+    ],
+    "neck_base": [
+     0,
+     -14
+    ],
+    "head_unit_px": 120
+   },
+   "covers_hair": true,
+   "attachments": [
+    {
+     "id": "pen-in-hand",
+     "child": "pen",
+     "parent": "palm-R",
+     "parent_anchor": "palm_grip",
+     "kind": "held",
+     "contact_points": [
+      "pen_grip"
+     ],
+     "max_gap_px": 4,
+     "layer_order": {
+      "front": [
+       "palm-R",
+       "pen",
+       "finger-index-R",
+       "thumb-R"
+      ],
+      "three-quarter-L": [
+       "pen",
+       "palm-R",
+       "finger-index-R",
+       "thumb-R"
+      ]
+     }
+    }
+   ],
+   "emotion_profile": {
+    "baseline": {
+     "blink_per_min": 12,
+     "gaze_habit": "avoids eye contact with authority"
+    },
+    "display_rules": {
+     "family": "open",
+     "peer": "guarded",
+     "authority": "masked",
+     "stranger": "polite"
+    },
+    "hidden_feeling_channel": "hands",
+    "leak": {
+     "fear": "hands stop, coat tags go still"
+    },
+    "never_uses": [
+     "voice raise"
+    ]
+   },
+   "face_controls": [
+    "AU1",
+    "AU2",
+    "AU4",
+    "AU5",
+    "AU6",
+    "AU7",
+    "AU9",
+    "AU12",
+    "AU15",
+    "AU20",
+    "AU23",
+    "AU26"
+   ]
+  }
+ ],
+ "beats": [
+  {
+   "id": "b1",
+   "start": 0,
+   "end": 3,
+   "treatment": "A",
+   "treatment_reason": "quiet setup: clear line and depth carry the mood",
+   "depth_planes": [
+    {
+     "id": "sky",
+     "parallax": 0.1
+    },
+    {
+     "id": "far-city",
+     "parallax": 0.25
+    },
+    {
+     "id": "mid-city",
+     "parallax": 0.5
+    },
+    {
+     "id": "street",
+     "parallax": 1
+    },
+    {
+     "id": "props-fg",
+     "parallax": 1.4
+    },
+    {
+     "id": "dust-fg",
+     "parallax": 1.9
+    }
+   ],
+   "light": {
+    "key": {
+     "dir": "low-left",
+     "color": "#ffb36b",
+     "source": "sunset",
+     "size": 0.5
+    },
+    "fill": {
+     "dir": "right",
+     "color": "#5b6fb0"
+    },
+    "rim": {
+     "dir": "back-left",
+     "color": "#ffd9a0"
+    },
+    "serves_emotion": "calm"
+   },
+   "cast_shadows": [
+    {
+     "caster": "hero",
+     "receiver": "ground",
+     "source": "mass_proxy",
+     "proxy": "hero-proxy",
+     "light": "key",
+     "self_shadow": true,
+     "contacts": [
+      {
+       "a": "pen",
+       "b": "page"
+      }
+     ]
+    },
+    {
+     "caster": "sign",
+     "receiver": "wall",
+     "source": "mass_proxy",
+     "proxy": "sign-proxy",
+     "light": "key"
+    }
+   ],
+   "interactions": [
+    {
+     "cause": "hero walk",
+     "effect": "dust puffs",
+     "kind": "splash-dust"
+    },
+    {
+     "cause": "hero pen hand",
+     "effect": "page corner presses down",
+     "kind": "contact",
+     "carries_emotion": true
+    }
+   ],
+   "actions": [
+    {
+     "part": "forearm-R",
+     "anticipation_frames": 4,
+     "overshoot": true
+    }
+   ],
+   "elements": [
+    {
+     "id": "moon",
+     "static_s": 1.5
+    }
+   ],
+   "holds": [],
+   "camera_move_pct": 6,
+   "poses": [
+    {
+     "character": "hero",
+     "pose_id": "walk-calm",
+     "catalogue": "hero/pose/walk-calm@1.0",
+     "contacts": [
+      {
+       "part": "palm-R",
+       "target": "pen",
+       "t0": 0,
+       "t1": 3,
+       "kind": "grip"
+      }
+     ]
+    }
+   ],
+   "texts": [],
+   "emotion": {
+    "primary": "calm",
+    "intensity": 0.3,
+    "shown": "visible",
+    "peak_s": 1.5,
+    "cause": "quiet morning routine",
+    "character": "hero"
+   },
+   "emotion_track": {
+    "eyes": {
+     "gaze_target": "page",
+     "darts_per_s": 0.3,
+     "blink_per_min": [
+      10,
+      17
+     ],
+     "onset_s": 0.0
+    },
+    "face": {
+     "aus": {
+      "12": 0.1
+     },
+     "onset_s": 0.1
+    },
+    "body": {
+     "effort": {
+      "weight": "light",
+      "time": "sustained",
+      "space": "direct",
+      "flow": "free"
+     },
+     "posture": "upright",
+     "onset_s": 0.2
+    },
+    "voice": {
+     "pace": "base",
+     "pitch_st": 0,
+     "energy": "soft",
+     "style_text": "even, soft, close to the mic"
+    },
+    "environment": {
+     "response": "lamp steady, dust drifts slowly",
+     "interaction_ref": "hero pen hand"
+    },
+    "colour": {
+     "hue_family": "warm amber",
+     "sat": "mid",
+     "value": "mid"
+    },
+    "sfx": [
+     {
+      "at_s": 0.0,
+      "what": "room tone bed"
+     }
+    ]
+   }
+  },
+  {
+   "id": "b2",
+   "start": 3,
+   "end": 6,
+   "treatment": "B",
+   "treatment_reason": "the fall: halftone and ones for the impact",
+   "depth_planes": [
+    {
+     "id": "sky",
+     "parallax": 0.1
+    },
+    {
+     "id": "far-city",
+     "parallax": 0.3
+    },
+    {
+     "id": "mid-city",
+     "parallax": 0.55
+    },
+    {
+     "id": "street",
+     "parallax": 1
+    },
+    {
+     "id": "props-fg",
+     "parallax": 1.5
+    },
+    {
+     "id": "dust-fg",
+     "parallax": 2.1
+    }
+   ],
+   "light": {
+    "key": {
+     "dir": "top",
+     "color": "#fff3d6",
+     "source": "neon flash",
+     "size": 0.2
+    },
+    "fill": {
+     "dir": "left",
+     "color": "#7a2f78"
+    },
+    "rim": {
+     "dir": "right",
+     "color": "#33d6ff"
+    },
+    "serves_emotion": "surprise"
+   },
+   "cast_shadows": [
+    {
+     "caster": "hero",
+     "receiver": "wall",
+     "source": "mass_proxy",
+     "proxy": "hero-proxy",
+     "light": "key",
+     "self_shadow": true
+    },
+    {
+     "caster": "hero",
+     "receiver": "ground",
+     "source": "mass_proxy",
+     "proxy": "hero-proxy",
+     "light": "key"
+    }
+   ],
+   "interactions": [
+    {
+     "cause": "hero landing",
+     "effect": "crate lid",
+     "kind": "displace"
+    },
+    {
+     "cause": "neon",
+     "effect": "hero coat",
+     "kind": "light-spill",
+     "carries_emotion": true
+    }
+   ],
+   "actions": [
+    {
+     "part": "thigh-L",
+     "anticipation_frames": 5
+    }
+   ],
+   "elements": [
+    {
+     "id": "sky",
+     "static_s": 1.8
+    }
+   ],
+   "holds": [
+    {
+     "element": "hero",
+     "start": 4.1,
+     "end": 4.6,
+     "why": "impact hold before the shake"
+    }
+   ],
+   "camera_move_pct": 5,
+   "poses": [
+    {
+     "character": "hero",
+     "pose_id": "flinch-back",
+     "new": true,
+     "build_up_sheet": "work/example/build-up/flinch-back.png",
+     "contacts": [
+      {
+       "part": "palm-R",
+       "target": "pen",
+       "t0": 3,
+       "t1": 4,
+       "kind": "grip"
+      }
+     ],
+     "exceed": [
+      {
+       "joint": "shoulder_flex",
+       "t0": 3.5,
+       "t1": 3.62,
+       "reason": "impact"
+      }
+     ]
+    }
+   ],
+   "texts": [
+    {
+     "id": "tag-name",
+     "string": "اسم الحقيبة",
+     "lang": "ar",
+     "box": {
+      "x": 300,
+      "y": 900,
+      "w": 400,
+      "h": 120
+     },
+     "layer": "top",
+     "plate": "opaque-flat",
+     "min_contrast": 7.0,
+     "height_px": 60,
+     "read_time_s": 1.2,
+     "t0": 4.0,
+     "t1": 5.5,
+     "appear": "cut-on-beat-start",
+     "leave": "cut"
+    }
+   ],
+   "emotion": {
+    "primary": "surprise",
+    "intensity": 0.8,
+    "shown": "visible",
+    "peak_s": 3.4,
+    "cause": "reflex startle: the bag slams the counter",
+    "character": "hero"
+   },
+   "emotion_track": {
+    "eyes": {
+     "gaze_target": "bag",
+     "darts_per_s": 1.0,
+     "blink_per_min": [
+      0,
+      20
+     ],
+     "onset_s": 3.1
+    },
+    "face": {
+     "aus": {
+      "1": 0.8,
+      "2": 0.8,
+      "5": 0.9,
+      "26": 0.7
+     },
+     "onset_s": 3.05
+    },
+    "body": {
+     "effort": {
+      "weight": "strong",
+      "time": "sudden",
+      "space": "direct",
+      "flow": "bound"
+     },
+     "posture": "snaps back",
+     "onset_s": 3.0
+    },
+    "voice": {
+     "pace": "fast",
+     "pitch_st": 3,
+     "energy": "high",
+     "style_text": "sharp inhale, short gasp"
+    },
+    "environment": {
+     "response": "lamp swings hard, shadows whip",
+     "interaction_ref": "hero landing -> crate lid"
+    },
+    "colour": {
+     "hue_family": "cold teal flash",
+     "sat": "rising",
+     "value": "falling"
+    },
+    "sfx": [
+     {
+      "at_s": 3.0,
+      "what": "slam"
+     },
+     {
+      "at_s": 3.05,
+      "what": "ring-out"
+     }
+    ],
+    "vfx": [
+     {
+      "at_s": 3.0,
+      "what": "impact frame",
+      "box": {
+       "x": 100,
+       "y": 300,
+       "w": 200,
+       "h": 200
+      }
+     }
+    ]
+   },
+   "emotion_change": {
+    "from": "calm",
+    "to": "surprise",
+    "bridge": "held breath then the slam",
+    "frames": 6
+   }
+  }
+ ],
+ "canvas": "1080x1920",
+ "props": [
+  {
+   "id": "pen",
+   "physics_profile": "rigid",
+   "mass_class": "light"
+  },
+  {
+   "id": "bag",
+   "physics_profile": "leather-soft",
+   "mass_class": "medium"
+  }
+ ],
+ "transitions": [
+  {
+   "from_beat": "b1",
+   "to_beat": "b2",
+   "type": "impact-cover",
+   "frames": 4,
+   "cause": "bag hits the counter at 3.0 s",
+   "style_entry": "under-cover",
+   "style_entry_frames": 2,
+   "rate_change": [
+    {
+     "part": "hero",
+     "from": "twos",
+     "to": "ones",
+     "ramp": "under-cover"
+    }
+   ],
+   "audio_lead_frames": 6
+  }
+ ],
+ "camera_plan": [
+  {
+   "shot": "s1",
+   "beat": "b1",
+   "size": "MWS",
+   "angle": "eye",
+   "lens_mm": 35,
+   "move": "push",
+   "start_frame_desc": "hero small in the room",
+   "end_frame_desc": "hero at the counter",
+   "dur_s": 1.5,
+   "why": "settle the viewer into the quiet room",
+   "serves_emotion": "calm"
+  },
+  {
+   "shot": "s2",
+   "beat": "b1",
+   "size": "CU",
+   "angle": "low",
+   "lens_mm": 50,
+   "move": "locked",
+   "start_frame_desc": "pen and page",
+   "end_frame_desc": "pen and page",
+   "dur_s": 1.5,
+   "why": "the pen is the only thing that moves",
+   "serves_emotion": "calm"
+  },
+  {
+   "shot": "s3",
+   "beat": "b2",
+   "size": "MS",
+   "angle": "dutch",
+   "dutch_deg": 8,
+   "lens_mm": 24,
+   "move": "handheld",
+   "start_frame_desc": "hero and counter",
+   "end_frame_desc": "hero recoiling",
+   "dur_s": 3.0,
+   "why": "shock: handheld shake and a tilted horizon",
+   "serves_emotion": "surprise",
+   "safe_boxes": [
+    {
+     "id": "face",
+     "x": 300,
+     "y": 400,
+     "w": 300,
+     "h": 300
+    }
+   ]
+  }
+ ]
+}
