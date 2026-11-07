@@ -372,7 +372,8 @@ def cast_with_refs(root, series="series", refs=True):
 
 def fake_engine(job):
     for ln in job["lines"]:
-        voice.write_wav16(ln["out"], silence(.1) + speech(.9) + silence(.5) + hum(.6, .01) + hiss(.4, .004), RATE)
+        for part in ln.get("segments") or [ln]:             # breath segmentation: one wav per segment, joined by the stage
+            voice.write_wav16(part["out"], silence(.1) + speech(.9) + silence(.5) + hum(.6, .01) + hiss(.4, .004), RATE)
     voice.write_json(job["result"], {"lines": [{"id": ln["id"], "gen_s": 0.1} for ln in job["lines"]]})
 
 

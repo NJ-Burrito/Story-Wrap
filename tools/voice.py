@@ -8,7 +8,7 @@
     uv run tools/voice.py manifest <episode-dir>
     uv run tools/voice.py measure <episode-dir> [--work <take-dir>]   # fill seconds/raw_seconds from existing takes
     uv run tools/voice.py gate     <episode-dir> [--full]
-    uv run tools/voice.py voice    <episode-dir> [--go]      (Chatterbox Multilingual, local GPU; dry run without --go)
+    uv run tools/voice.py voice    <episode-dir> [--go] [--no-breath] [--inhale] [--resume | --rejoin]   (breath segmentation on by default; Chatterbox Multilingual, local GPU; dry run without --go)
     uv run tools/voice.py status   <episode-or-work-dir>     (per line: taken / not-taken / blocked-after-start)
     uv run tools/voice.py repair   <work-dir> --reason "<error>"   (old logs: started-only lines -> not-taken)
     uv run tools/voice.py trim     <in.wav> <out.wav> [--role narrator|dialogue] [--no-master]   (offline end-trim + the mastering chain; no model)
@@ -603,7 +603,7 @@ def trim_bounds(x, rate):
             "clipped_end": edge_db > CLIP_EDGE_DB, "dropped_runs": dropped}
 
 
-def trim_take(x, rate, done_after_s=None):
+def trim_take(x, rate, done_after_s=None, edge_overrides=None):
     """Cut the noise-only edges before and after the words, fade inside the guards, add clean silence. Post-processing
     of the one take (2026-10-26: the word-safe edge cleaner, tools/voice_edges.py, numbers `take.edge.*` in
     tools/sound_profile.json; the speech span itself is never scaled or cut). `done_after_s` (from the text, see
@@ -611,7 +611,7 @@ def trim_take(x, rate, done_after_s=None):
     -> (new floats, info). info has cut_start_ms and cut_end_ms (what was removed from the raw take)."""
     import numpy as np
     import voice_edges as VE                         # numpy: imported here, so the Chatterbox worker never needs it
-    E = VE.params()
+    E = {**VE.params(), **(edge_overrides or {})}      # a breath-joined take widens run_gap_s so its own pauses are not read as a gap before a stray run
     xa = np.asarray(x, dtype="float64")
     try:
         body, rec = VE.clean(xa, rate, E, done_after_s)
@@ -647,11 +647,11 @@ def master_sidecar(dst):
     return Path(str(dst)[:-4] + ".master.json") if str(dst).endswith(".wav") else Path(str(dst) + ".master.json")
 
 
-def cmd_trim(src, dst, master=None, role="dialogue", done_after_s=None):
+def cmd_trim(src, dst, master=None, role="dialogue", done_after_s=None, edge_overrides=None):
     """Edge-clean one take, then (default) the mastering chain; writes dst (16-bit) and, when mastered, dst's .master.json report.
     -> the trim record, with `master` (role, before/after metrics, stages, contract) when the chain ran."""
     x, rate = read_float(src)
-    y, info = trim_take(x, rate, done_after_s)
+    y, info = trim_take(x, rate, done_after_s, edge_overrides)
     if MASTER_TAKES if master is None else master:
         import voice_master as VM                    # numpy/scipy: imported only here, so the Chatterbox worker never needs them
         ya, rep = VM.master_take(y, rate, role)
@@ -664,13 +664,16 @@ def cmd_trim(src, dst, master=None, role="dialogue", done_after_s=None):
     return info
 
 
-def edge_noise_problems(samples, rate):
+def edge_noise_problems(samples, rate, max_pause_s=None):
     """VOICE-EDGE-NOISE (2026-10-26): no noise-only window before the first word or after the last one, beyond the guards
     (tools/voice_edges.py, limits `checks.edge_noise`). Same detector as the cleaner, so a take it cleaned passes and a take
     with a noise-only lead-in or tail (the old trim's j03 L01: 3.97 s) fails."""
     import numpy as np
     import voice_edges as VE
-    return VE.edge_problems(np.asarray(samples, dtype="float64"), rate)
+    prof = None
+    if max_pause_s:                                  # a breath-joined take holds pauses longer than run_gap_s: widen the gap the way the cleaner did (trim_take edge_overrides)
+        prof = {"take": {"edge": {**VE.params(), "run_gap_s": max(VE.params()["run_gap_s"], max_pause_s + 0.3)}}, "checks": {"edge_noise": VE.check_limits()}}
+    return VE.edge_problems(np.asarray(samples, dtype="float64"), rate, prof)
 
 
 def tail_problems(samples, rate, info=None):
@@ -1176,14 +1179,315 @@ def chatterbox_worker(job_path):
         cap["n"] = ln["cap"]
         if marks:                                    # before generation: from here a crash may leave audio behind
             mark(marks, {"event": "generating", "id": ln["id"]})
-        torch.manual_seed(int(sha(ln["id"])[:8], 16))
         t0 = time.time()
-        wav = m.generate(ln["text"], audio_prompt_path=ln["ref"], **{**job["settings"], **ln.get("settings", {})})
-        torch.cuda.synchronize()
-        ta.save(ln["out"], wav.cpu(), m.sr)
+        # Breath segmentation: a line with segments is voiced as one Chatterbox utterance per segment, ONE take each, so the word
+        # after a pause starts with sentence-initial prosody. A line without segments is one utterance (the old path, seed from the line id).
+        parts = ln.get("segments") or [{"text": ln["text"], "out": ln["out"], "cap": ln["cap"], "seed_key": ln["id"], "reuse": ln.get("reuse")}]
+        for part in parts:
+            if part.get("reuse"):                    # --resume: this segment's take already exists on disk; never voiced again
+                continue
+            cap["n"] = part.get("cap", ln["cap"])
+            torch.manual_seed(int(sha(part.get("seed_key", ln["id"]))[:8], 16))
+            wav = m.generate(part["text"], audio_prompt_path=ln["ref"], **{**job["settings"], **ln.get("settings", {})})
+            torch.cuda.synchronize()
+            ta.save(part["out"], wav.cpu(), m.sr)
         results.append({"id": ln["id"], "gen_s": round(time.time() - t0, 1), "sr": m.sr})
         write_json(job["result"], {"lines": results})
     return 0
+
+
+# ---------------------------------------------------------------- breath segmentation
+# Owner feedback on a test episode: the voice lacks the breath a speaker takes between sentences and after question marks, exclamation marks and
+# commas, and the word after the pause must be said as a first word. So (default ON, `voice --no-breath` turns it off):
+#   1. a line's tts_text is split after each punctuation mark, the mark stays on the end of its segment (the prosody follows it);
+#   2. every segment is its own Chatterbox utterance (ONE take each, no verify, no re-voice), so the word after a pause starts as a first word;
+#   3. the takes are joined with a breath pause whose length depends on the mark and which is filled with the voice's own quiet floor
+#      (room tone cut from its reference), never digital zero (REF and VOICE gates flag digital silence).
+BREATH_PAUSE_S = {                # seconds of quiet between the last word of a segment and the first word of the next (owner-chosen)
+    "comma": 0.22,                # «،»  ,
+    "semi": 0.30,                 # «؛»  ;  :
+    "stop": 0.40,                 # .
+    "ellipsis": 0.40,             # ...  …   (not in the owner's list: held like a full stop)
+    "strong": 0.45,               # «؟»  ?  !
+}
+BREATH_MARKS = {"،": "comma", ",": "comma", "؛": "semi", ";": "semi", ":": "semi", ".": "stop", "…": "ellipsis",
+                "؟": "strong", "?": "strong", "!": "strong"}
+BREATH_CLOSERS = "»”’\"')]"       # a closing quote or bracket after a mark stays on that segment («…؟»)
+BREATH_WEAK = ("comma", "semi")   # a SHORT segment ending in a weak mark joins its neighbour; a short one ending . ? ! ... stands alone
+BREATH_MIN_WORDS = 3              # "very short" = fewer words than this
+BREATH_LEAD_KEEP_S = 0.04         # speech-span margins kept around each segment take when joining (inside the pause budget)
+BREATH_TAIL_KEEP_S = 0.10
+BREATH_LEAD_PAD_S = 0.06          # room tone before the first and after the last word of a joined take (the edge cleaner keeps its own guards on top)
+BREATH_TAIL_PAD_S = 0.25
+BREATH_FADE_S = 0.05              # equal-power cross-fade between a segment's edge and the room tone under the pause
+BREATH_TONE_WIN_S = 0.25          # length of the quietest stretch cut from the reference as room tone
+BREATH_TONE_XFADE_S = 0.03
+BREATH_TONE_MIN_DBFS = -84.0      # a room tone quieter than this is raised to it: under about 1.5 LSB of 16-bit it would round to digital zero in the wav
+BREATH_FALLBACK_DBFS = -72.0      # room tone when the reference has no usable quiet stretch (every window holds digital zeros)
+BREATH_TONE_MAX_DB = 15.0         # a room-tone window must sit at least this far under the reference's loud frames (p95), else it is speech, not a floor
+BREATH_MAX_ZERO_RUN_S = 0.002     # a room-tone window with a longer run of exact zeros is a gate/denoiser splice, not a microphone
+BREATH_INHALE = False             # optional soft inhale (default OFF, owner decision: only if a clean breath can be cut from the speaker's own reference)
+INHALE_PEAK_DBFS = -38.0          # "very soft"
+INHALE_LEN_S = (0.18, 0.60)
+
+
+def pause_kind(run):
+    """The pause class of a run of marks («؟!», «...», «.»): the longest class in it; an ellipsis (… or three dots) counts as an ellipsis."""
+    if "…" in run or "..." in run:
+        return "ellipsis"
+    kinds = [BREATH_MARKS[c] for c in run if c in BREATH_MARKS]
+    return max(kinds, key=lambda k: BREATH_PAUSE_S[k]) if kinds else None
+
+
+def split_breath(text):
+    """Split tts_text after each punctuation mark. -> [{"text", "mark" (class or None)}]; the mark stays on the end of its segment.
+    A mark between two digits (3.5, 1,000) or not followed by a space or the end is not a break. A piece with no letters is glued to the segment before it."""
+    segs, cur, i, n = [], "", 0, len(text)
+    while i < n:
+        ch = text[i]
+        cur += ch
+        i += 1
+        if ch not in BREATH_MARKS:
+            continue
+        if ch in ".,:" and i >= 2 and text[i - 2].isdigit() and i < n and text[i].isdigit():
+            continue
+        run = ch
+        while i < n and (text[i] in BREATH_MARKS or text[i] in BREATH_CLOSERS):
+            cur += text[i]
+            run += text[i]
+            i += 1
+        if i < n and not text[i].isspace():
+            continue
+        segs.append({"text": cur.strip(), "mark": pause_kind(run)})
+        cur = ""
+    if cur.strip():
+        segs.append({"text": cur.strip(), "mark": None})
+    out = []
+    for s in segs:
+        if out and not AR_LETTER.search(s["text"]) and not re.search(r"[A-Za-z0-9]", s["text"]):
+            out[-1]["text"] += " " + s["text"]
+            out[-1]["mark"] = s["mark"] or out[-1]["mark"]
+        else:
+            out.append(dict(s))
+    return out
+
+
+def words_of(text):
+    return len([w for w in re.split(r"\s+", text) if re.search(r"\w", w)])
+
+
+def merge_short(segs, min_words=BREATH_MIN_WORDS):
+    """Short-segment rule: a segment of fewer than `min_words` words that ends in a WEAK mark (comma, semicolon, colon) is spoken together with the
+    NEXT segment (one utterance, its comma kept inside the text; the pause after the merged unit is the later segment's). A short LAST segment that
+    follows a weak mark joins the one BEFORE it. A short segment that ends a sentence (. ? ! ...) is NEVER merged: it is a sentence of its own and
+    gets its breath and its sentence-initial start («نعم.», «وكلماته؟»). -> segments with `pause_s` (0 for the last)."""
+    segs = [dict(s) for s in segs]
+    i = 0
+    while i < len(segs) - 1:
+        s = segs[i]
+        if words_of(s["text"]) < min_words and s["mark"] in BREATH_WEAK:
+            segs[i + 1]["text"] = s["text"] + " " + segs[i + 1]["text"]
+            del segs[i]
+            continue
+        i += 1
+    if len(segs) > 1 and words_of(segs[-1]["text"]) < min_words and segs[-2]["mark"] in BREATH_WEAK:
+        segs[-2]["text"] += " " + segs[-1]["text"]
+        segs[-2]["mark"] = segs[-1]["mark"]
+        segs.pop()
+    for k, s in enumerate(segs):
+        s["pause_s"] = BREATH_PAUSE_S.get(s["mark"], 0.0) if k < len(segs) - 1 else 0.0
+    return segs
+
+
+def breath_plan(tts_text):
+    """-> the segments to voice for one line (one entry = no split)."""
+    return merge_short(split_breath(tts_text))
+
+
+def room_tone_window(x, rate, win_s=BREATH_TONE_WIN_S, max_zero_run_s=BREATH_MAX_ZERO_RUN_S):
+    """The quietest stretch of the reference (lowest mean square over `win_s`), skipping stretches with a run of exact zeros. -> numpy array or None."""
+    import numpy as np
+    x = np.asarray(x, dtype="float64")
+    w = int(win_s * rate)
+    if len(x) < w * 1.2:
+        return None
+    hop = max(1, int(0.01 * rate))
+    e = np.convolve(x * x, np.ones(w) / w, mode="valid")[::hop]
+    zr = int(max_zero_run_s * rate)
+    loud = float(np.percentile(e, 95))
+    for k in np.argsort(e):
+        if e[k] > loud * 10 ** (-BREATH_TONE_MAX_DB / 10):
+            return None                                   # sorted by level: nothing quieter follows
+        seg = x[k * hop:k * hop + w]
+        z = np.diff(np.concatenate(([0], (seg == 0).astype(int), [0])))
+        runs = np.nonzero(z == -1)[0] - np.nonzero(z == 1)[0]
+        if len(runs) and runs.max() > zr:
+            continue
+        if float(np.sqrt(e[k])) <= 0.0:
+            continue
+        return seg - float(np.mean(seg))
+    return None
+
+
+def tile_tone(tone, n, rate, xfade_s=BREATH_TONE_XFADE_S):
+    """n samples of room tone: the window, then its time-reverse, and so on, equal-power cross-faded (deterministic)."""
+    import numpy as np
+    w = len(tone)
+    xf = min(int(xfade_s * rate), w // 3)
+    out = np.zeros(n + w)
+    pos, k = 0, 0
+    fi = np.sin(0.5 * math.pi * (np.arange(xf) + 0.5) / max(1, xf))
+    while pos < n:
+        t = (tone if k % 2 == 0 else tone[::-1]).copy()
+        if k:
+            t[:xf] *= fi
+            out[pos:pos + xf] *= fi[::-1]
+        out[pos:pos + w] += t
+        pos += w - xf
+        k += 1
+    return out[:n]
+
+
+def fallback_tone(n, rate, dbfs=BREATH_FALLBACK_DBFS):
+    """Seeded low-level noise at `dbfs` RMS: the floor when a reference has no usable quiet stretch."""
+    import numpy as np
+    r = np.random.default_rng(20261107).standard_normal(n)
+    return r / np.sqrt(np.mean(r * r)) * 10 ** (dbfs / 20)
+
+
+def find_inhale(x, rate):
+    """A clean breath cut from the speaker's OWN reference, or None: a noise-like (flat), quiet-but-above-floor stretch of 0.18-0.6 s with quiet frames
+    on both sides. Used only with `inhale=True`; default off."""
+    import numpy as np
+    x = np.asarray(x, dtype="float64")
+    hop, win = int(0.01 * rate), int(0.02 * rate)
+    if len(x) < 10 * win:
+        return None
+    fr = np.array([x[i:i + win] for i in range(0, len(x) - win, hop)])
+    db = 10 * np.log10(np.mean(fr * fr, axis=1) + 1e-12)
+    floor, p95 = np.percentile(db, 10), np.percentile(db, 95)
+    flat = np.array([band_flatness(list(f), rate) for f in fr])
+    cand = (db > floor + 10) & (db < p95 - 22) & (flat > 0.35)
+    i = 0
+    while i < len(cand):
+        if not cand[i]:
+            i += 1
+            continue
+        j = i
+        while j + 1 < len(cand) and cand[j + 1]:
+            j += 1
+        ln = (j - i + 1) * hop / rate
+        if INHALE_LEN_S[0] <= ln <= INHALE_LEN_S[1] and i > 3 and j < len(cand) - 4 and db[i - 3] < floor + 6 and db[j + 3] < floor + 6:
+            seg = x[i * hop:(j + 1) * hop + win]
+            seg = seg - np.mean(seg)
+            return seg * 10 ** (INHALE_PEAK_DBFS / 20) / max(1e-9, float(np.max(np.abs(seg))))
+        i = j + 1
+    return None
+
+
+def _fade_edges(p, rate, fi_s, fo_s):
+    import numpy as np
+    p = p.copy()
+    fi, fo = min(int(fi_s * rate), len(p) // 3), min(int(fo_s * rate), len(p) // 3)
+    if fi:
+        p[:fi] *= np.sin(0.5 * math.pi * (np.arange(fi) + 0.5) / fi)
+    if fo:
+        p[len(p) - fo:] *= np.cos(0.5 * math.pi * (np.arange(fo) + 0.5) / fo)
+    return p
+
+
+def join_segments(parts, rate, pauses, tone, dones=None, inhale=None, kinds=None):
+    """Join the segment takes with breath pauses. parts = float arrays (raw takes at `rate`); pauses[k] = seconds of quiet between the speech of segment k
+    and k+1; tone = room-tone window (numpy) cut from the speaker's reference, or None for the seeded fallback floor.
+    Each take keeps its speech span plus BREATH_LEAD_KEEP_S before and BREATH_TAIL_KEEP_S after (the model's noise lead-in and run-on are dropped); the
+    pause is the rest of the budget, filled with room tone cross-faded in and out under the neighbouring takes, so no sample of the gap is digital zero.
+    Every piece edge is faded (50 ms where audio was cut away, 20 ms where the model's take simply ended), and the joined take starts and ends with
+    BREATH_LEAD_PAD_S / BREATH_TAIL_PAD_S of room tone, so the last word is never the last sample (VOICE-TAIL reads the level at the end).
+    -> (numpy array, record with the designed and the measured gap per join)."""
+    import numpy as np
+    import voice_edges as VE
+    E = VE.params()
+    if tone is not None:
+        rms = float(np.sqrt(np.mean(np.asarray(tone) ** 2)))
+        floor = 10 ** (BREATH_TONE_MIN_DBFS / 20)
+        tone = np.asarray(tone) * (floor / rms if rms < floor else 1.0)
+    pieces = []
+    for k, x in enumerate(parts):
+        x = np.asarray(x, dtype="float64")
+        sp = VE.speech_span(x, rate, E, done_after_s=(dones[k] if dones else None))
+        a = max(0, int(round((sp["onset_s"] - BREATH_LEAD_KEEP_S) * rate)))
+        b = min(len(x), int(round((sp["offset_s"] + BREATH_TAIL_KEEP_S) * rate)))
+        on = int(round(sp["onset_s"] * rate)) - a
+        off = int(round(sp["offset_s"] * rate)) - a
+        p = _fade_edges(x[a:b], rate, BREATH_FADE_S if a > 0 else 0.01, BREATH_FADE_S if b < len(x) else 0.02)
+        pieces.append((p, on, off))
+    fo_n = int(BREATH_FADE_S * rate)
+    lead_n, tail_n = int(BREATH_LEAD_PAD_S * rate), int(BREATH_TAIL_PAD_S * rate)
+    # the quiet between two speech spans is (what the take kept after its last sound) + (room tone) + (what the next kept before its first sound); a take
+    # that starts speaking at once has less than BREATH_LEAD_KEEP_S before its onset, so the room tone is what is left of the pause budget
+    gaps = [max(0, int(round(pauses[k] * rate)) - (len(pieces[k][0]) - pieces[k][2]) - pieces[k + 1][1]) for k in range(len(pieces) - 1)]
+    total = lead_n + sum(len(p) for p, _, _ in pieces) + sum(gaps) + tail_n
+    out = np.zeros(total)
+    big = tile_tone(tone, total + fo_n, rate) if tone is not None else fallback_tone(total + fo_n, rate)
+    pos, starts = lead_n, []
+    for k, (p, on, off) in enumerate(pieces):
+        out[pos:pos + len(p)] += p
+        starts.append((pos, on, off))
+        pos += len(p)
+        if k < len(pieces) - 1:
+            g = gaps[k]
+            n1, n2 = min(fo_n, len(p)), min(fo_n, len(pieces[k + 1][0]))
+            seg = big[pos - n1:pos + g + n2].copy()          # room tone under the whole pause, fading in over the end of piece k and out over the start of k+1
+            seg[:n1] *= np.sin(0.5 * math.pi * (np.arange(n1) + 0.5) / max(1, n1))
+            seg[len(seg) - n2:] *= np.cos(0.5 * math.pi * (np.arange(n2) + 0.5) / max(1, n2))
+            out[pos - n1:pos + g + n2] += seg
+            if inhale is not None and (kinds or [None] * len(pieces))[k] in ("stop", "strong", "ellipsis") and len(inhale) + int(0.1 * rate) < g:
+                s0 = pos + g - len(inhale) - int(0.04 * rate)
+                out[s0:s0 + len(inhale)] += _fade_edges(inhale, rate, 0.04, 0.06)
+            pos += g
+    e0, e1 = min(fo_n, len(pieces[0][0])), min(fo_n, len(pieces[-1][0]))
+    env0 = np.concatenate([np.ones(lead_n), np.cos(0.5 * math.pi * (np.arange(e0) + 0.5) / max(1, e0))])      # floor before the first word, fading out as the first take fades in
+    out[:len(env0)] += big[:len(env0)] * env0
+    env1 = np.concatenate([np.sin(0.5 * math.pi * (np.arange(e1) + 0.5) / max(1, e1)), np.ones(tail_n)])        # floor after the last word, fading in as the last take fades out
+    out[total - len(env1):] += big[:len(env1)] * env1
+    rec, spans = [], []
+    for k in range(len(pieces) - 1):
+        p0, on0, off0 = starts[k]
+        p1, on1, off1 = starts[k + 1]
+        rec.append({"after_segment": k, "designed_s": round(pauses[k], 3), "measured_s": round(((p1 + on1) - (p0 + off0)) / rate, 3)})
+        spans.append((p0 + off0, p1 + on1))
+    return out, {"joins": rec, "pause_spans": spans, "room_tone": "reference" if tone is not None else f"fallback {BREATH_FALLBACK_DBFS:.0f} dBFS noise", "inhale": inhale is not None}
+
+
+def max_zero_run_s(x, rate):
+    """Longest run of exact zeros in x, in seconds (the digital-silence test of the breath tests and the join record)."""
+    import numpy as np
+    z = np.diff(np.concatenate(([0], (np.asarray(x) == 0).astype(int), [0])))
+    runs = np.nonzero(z == -1)[0] - np.nonzero(z == 1)[0]
+    return float(runs.max() / rate) if len(runs) else 0.0
+
+
+def join_line_files(seg_files, ref_path, pauses, kinds, dones, out_path, inhale=False):
+    """Read the segment takes (wav), join them with room tone from the speaker's reference, write the raw take `out_path` (16-bit). -> join record."""
+    import numpy as np
+    parts, rate = [], None
+    for f in seg_files:
+        x, r = read_float(f)
+        rate = rate or r
+        if r != rate:
+            raise Fail("VOICE-AUDIO", f"{f}: sample rate {r} differs from {rate}")
+        parts.append(np.asarray(x))
+    rx, rr = read_float(ref_path)
+    rx = np.asarray(rx if rr == rate else resample(rx, rr, rate))
+    tone = room_tone_window(rx, rate)
+    inh = find_inhale(rx, rate) if inhale else None
+    y, rec = join_segments(parts, rate, pauses, tone, dones=dones, inhale=inh, kinds=kinds)
+    write_wav16(out_path, [float(v) for v in y], rate)
+    rec["rate"] = rate
+    q = np.round(y * 32767)
+    rec["max_zero_run_s"] = round(max_zero_run_s(q, rate), 4)                    # the whole take: includes zeros the model itself wrote inside a segment
+    rec["pause_zero_run_s"] = round(max([max_zero_run_s(q[a:b], rate) for a, b in rec.pop("pause_spans")] or [0.0]), 4)   # the pauses this join built
+    return rec
 
 
 # ---------------------------------------------------------------- pre-flight (resources the model needs before it loads)
@@ -1259,8 +1563,13 @@ def real_resources():
             "need_commit": need_commit_bytes()}
 
 
-def cmd_voice(paths=None, go=False, engine=ENGINE, repo=REPO, synth=None, resources=None, master=None, **_ignored):
+def cmd_voice(paths=None, go=False, engine=ENGINE, repo=REPO, synth=None, resources=None, master=None, breath=True, inhale=BREATH_INHALE, resume=False, rejoin=False, **_ignored):
     """ONE Chatterbox take per line, then the offline end-trim. Without --go it only prints the plan.
+    `rejoin=True` (`--rejoin`, implies resume): join, trim and master AGAIN from the saved segment takes of every line (post-processing only; no model runs,
+    nothing is voiced). Use it after a change to the join or the trim, never to get another take.
+    `resume=True` (`--resume`, after a worker CRASH only): a line the crashed run left unfinished is completed from the audio that already exists on disk
+    (segment takes are reused, never regenerated; a line whose segments are all there is only joined, trimmed and logged); only a segment whose audio does not
+    exist is voiced, once. A line with no audio at all that had started stays blocked (VOICE-ONCE).
     `synth(job) -> None` replaces the GPU worker in tests; it must write each job line's `out` wav and call
     `mark(job["marks"], ...)` when it loads / starts a line. `resources() -> dict` replaces the pre-flight probe
     (default: probe only when the real worker is used)."""
@@ -1272,24 +1581,56 @@ def cmd_voice(paths=None, go=False, engine=ENGINE, repo=REPO, synth=None, resour
     manifest = read_json(paths["manifest"])
     work = paths["work"]
     jobs = []
+    resume = resume or rejoin
+    prev_job = read_json(work / "worker-job.json") if resume and (work / "worker-job.json").exists() else {}
+    prev_segs = {pj["id"]: [s["text"] for s in (pj.get("segments") or [])] for pj in prev_job.get("lines", [])}
+    if resume:                                        # the text each segment take voiced, from the lines that were finished and logged
+        for ln_id, rec in attempts(work).items():
+            if rec.get("status") == "ok" and (rec.get("breath") or {}).get("segments"):
+                prev_segs[ln_id] = [s["text"] for s in rec["breath"]["segments"]]
     for m in manifest["lines"]:
         n = m["id"]
-        if superseded_log(work).exists() and line_state(work, n) == "taken":
+        st = line_state(work, n)
+        if resume and not rejoin and st == "taken" and (work / f"{n}.trimmed.wav").exists():
+            continue                      # finished by an earlier run
+        if superseded_log(work).exists() and st == "taken":
             continue                      # only the lines of a superseded (banned) voice are voiced again; settled takes stay
         ref = reference_for(casting, m["speaker"], repo)
-        if line_state(work, n) in ("taken", "blocked-after-start"):
+        if st in ("taken", "blocked-after-start") and not resume:
             raise Fail("VOICE-ONCE", f"line {n}: a take was already made or started; a line is voiced once, never re-voiced")
         jobs.append({"id": n, "speaker": m.get("speaker"), "text": m["tts_text"], "ref": str(ref), "out": str(work / f"{n}.wav"),
                      "ref_sha256": (rs := sha(ref.read_bytes())), "cap": token_cap(m["tts_text"], m.get("speaker"), rs),
                      "cap_rate": voice_rate(m.get("speaker"), rs)[1], "done_after_s": round(edge_done_after_s(m["tts_text"], m.get("speaker"), rs), 2),
                      "settings": {**character_settings(casting, m.get("speaker")), **line_tone(m)}})
+        plan = breath_plan(m["tts_text"]) if breath else []
+        if len(plan) > 1:                   # breath segmentation: one utterance per segment, joined by join_line_files after the worker
+            j = jobs[-1]
+            j["segments"] = [{"text": s["text"], "mark": s["mark"], "pause_s": s["pause_s"], "out": str(work / f"{n}.seg{k:02d}.wav"),
+                              "cap": token_cap(s["text"], m.get("speaker"), j["ref_sha256"]), "seed_key": f"{n}#seg{k:02d}",
+                              "done_after_s": round(edge_done_after_s(s["text"], m.get("speaker"), j["ref_sha256"]), 2)} for k, s in enumerate(plan)]
+            j["cap"] = max(s["cap"] for s in j["segments"])
+        if resume and st in ("taken", "blocked-after-start"):      # crash recovery: reuse the audio that exists, voice only what does not
+            j = jobs[-1]
+            if j.get("segments"):
+                before = prev_segs.get(n, [])
+                for k, s in enumerate(j["segments"]):
+                    s["reuse"] = Path(s["out"]).exists() and k < len(before) and before[k] == s["text"]
+                reused = [k for k, s in enumerate(j["segments"]) if s["reuse"]]
+            else:
+                j["reuse"] = Path(j["out"]).exists()
+                reused = [0] if j["reuse"] else []
+            if not reused:
+                raise Fail("VOICE-ONCE", f"line {n}: it started in an earlier run and left no audio; a started line stays blocked (resume completes only what exists)")
+            j["resumed"] = {"from_state": st, "reused_segments": reused, **({"rejoin": True} if rejoin else {})}
+    gen_jobs = [j for j in jobs if (any(not s.get("reuse") for s in j["segments"]) if j.get("segments") else not j.get("reuse"))]
     if not go:
-        print(f"dry run: {len(jobs)} take(s), engine {ENGINE}, one each, local GPU. Add --go to voice them.")
+        print(f"dry run: {len(jobs)} take(s) ({len(gen_jobs)} to generate), engine {ENGINE}, one each, local GPU. Add --go to voice them.")
         return 0
-    check_gate_receipt(paths)
+    if gen_jobs:                                     # a pass that only joins and trims (--resume with nothing left, --rejoin) voices nothing and needs no receipt
+        check_gate_receipt(paths)
     if resources is None and synth is None:
         resources = real_resources
-    if resources is not None:
+    if resources is not None and gen_jobs:
         r = resources()
         short = preflight_problems(r.get("commit_free"), r.get("gpu_free"), r.get("need_commit", need_commit_bytes()))
         if short:
@@ -1298,15 +1639,17 @@ def cmd_voice(paths=None, go=False, engine=ENGINE, repo=REPO, synth=None, resour
     now = time.strftime("%Y-%m-%dT%H:%M:%S")
     marks = work / "worker-marks.jsonl"
     marks.write_text("", encoding="utf-8")           # earlier runs are settled in attempts.jsonl
-    for j in jobs:                                   # logged BEFORE the model runs: a crash never allows a second take
-        log_attempt(work, {"id": j["id"], "status": "started", "engine": ENGINE, "at": now})
-    job = {"lines": jobs, "settings": CHATTERBOX_SETTINGS, "result": str(work / "worker-result.json"), "marks": str(marks),
+    for j in gen_jobs:                               # logged BEFORE the model runs: a crash never allows a second take
+        log_attempt(work, {"id": j["id"], "status": "resumed" if j.get("resumed") else "started", "engine": ENGINE, "at": now, **({"resumed": j["resumed"]} if j.get("resumed") else {})})
+    job = {"lines": gen_jobs, "settings": CHATTERBOX_SETTINGS, "result": str(work / "worker-result.json"), "marks": str(marks),
            "eos_after_complete_tokens": eos_after_complete_tokens()}
     write_json(work / "worker-job.json", job)
-    ids = [j["id"] for j in jobs]
+    ids = [j["id"] for j in gen_jobs]
     err_log = work / "worker-stderr.log"
     failure = None
-    if synth is not None:
+    if not gen_jobs:
+        pass                                         # resume with nothing left to generate: only join, trim and log
+    elif synth is not None:
         try:
             synth(job)
         except Exception as e:                       # the synthetic worker died
@@ -1327,23 +1670,51 @@ def cmd_voice(paths=None, go=False, engine=ENGINE, repo=REPO, synth=None, resour
             if tail:
                 failure += f" | stderr tail: {tail}"
     gen = {r["id"]: r for r in (read_json(job["result"])["lines"] if Path(job["result"]).exists() else [])}
-    if failure is None and any(not Path(j["out"]).exists() for j in jobs):
-        failure = "the worker finished but wrote no audio for: " + ", ".join(j["id"] for j in jobs if not Path(j["out"]).exists())
+    joined = {}
+
+    def complete(j):
+        return all(Path(s["out"]).exists() for s in j["segments"]) if j.get("segments") else Path(j["out"]).exists()
+
+    def finish(js):
+        """Join the segment takes of each complete line into <id>.wav, end-trim and master it, log it `ok`. -> ids finished."""
+        import voice_master as VM
+        done = []
+        for j in js:
+            if not complete(j):
+                continue
+            segs = j.get("segments")
+            if segs:                                 # breath-segmented line: the segment takes are joined into the raw take <id>.wav
+                joined[j["id"]] = join_line_files([s["out"] for s in segs], j["ref"], [s["pause_s"] for s in segs],
+                                                  [s["mark"] for s in segs], [s["done_after_s"] for s in segs], j["out"], inhale=inhale)
+            raw = Path(j["out"])
+            pause_total = sum(s["pause_s"] for s in segs) if segs else 0.0
+            info = cmd_trim(raw, work / f"{j['id']}.trimmed.wav", master=master, role=VM.role_of(j.get("speaker")),
+                            done_after_s=(j.get("done_after_s") or 0) + pause_total if segs else j.get("done_after_s"),
+                            edge_overrides={"run_gap_s": max(s["pause_s"] for s in segs) + 0.3} if segs else None)
+            log_attempt(work, {"id": j["id"], "status": "ok", "engine": ENGINE, "settings": CHATTERBOX_SETTINGS,
+                               "reference": {"clip": Path(j["ref"]).relative_to(repo).as_posix() if Path(j["ref"]).is_relative_to(repo) else j["ref"],
+                                             "sha256": j["ref_sha256"]},
+                               "token_cap": j["cap"], "token_cap_rate": j.get("cap_rate"), "eos_after_complete_tokens": job["eos_after_complete_tokens"], "gen_s": gen.get(j["id"], {}).get("gen_s"), "raw_sha256": sha(raw.read_bytes()),
+                               "tts_sha256": sha(j["text"].encode("utf-8")),
+                               "trim": info,
+                               **({"resumed": j["resumed"]} if j.get("resumed") else {}),
+                               **({"breath": {"on": True, "inhale": inhale, "pause_table_s": BREATH_PAUSE_S, "join": joined.get(j["id"]),
+                                              "segments": [{"text": s["text"], "mark": s["mark"], "pause_s": s["pause_s"], "cap": s["cap"],
+                                                            "tts_sha256": sha(s["text"].encode("utf-8")),
+                                                            "raw_sha256": sha(Path(s["out"]).read_bytes())} for s in segs]}} if segs else {})})
+            done.append(j["id"])
+        return done
+
+    if failure is None and any(not complete(j) for j in jobs):
+        failure = "the worker finished but wrote no audio for: " + ", ".join(j["id"] for j in jobs if not complete(j))
     if failure is not None:
+        # lines the worker finished before it died (its result file lists them) are real takes: finish them now, so a crash on line N never loses lines 1..N-1
+        finish([j for j in jobs if complete(j) and (j["id"] in gen or j not in gen_jobs)])
         flat = " ".join(failure.split())
         nt, bl = settle_failed_run(work, ids, marks, flat[:1200])
         raise Fail("VOICE-ENGINE", f"{flat}. Not taken (may be voiced later): {', '.join(nt) or 'none'}. "
                                    f"Blocked, generation had started: {', '.join(bl) or 'none'}.")
-    for j in jobs:
-        raw = Path(j["out"])
-        import voice_master as VM
-        info = cmd_trim(raw, work / f"{j['id']}.trimmed.wav", master=master, role=VM.role_of(j.get("speaker")), done_after_s=j.get("done_after_s"))
-        log_attempt(work, {"id": j["id"], "status": "ok", "engine": ENGINE, "settings": CHATTERBOX_SETTINGS,
-                           "reference": {"clip": Path(j["ref"]).relative_to(repo).as_posix() if Path(j["ref"]).is_relative_to(repo) else j["ref"],
-                                         "sha256": j["ref_sha256"]},
-                           "token_cap": j["cap"], "token_cap_rate": j.get("cap_rate"), "eos_after_complete_tokens": job["eos_after_complete_tokens"], "gen_s": gen.get(j["id"], {}).get("gen_s"), "raw_sha256": sha(raw.read_bytes()),
-                           "tts_sha256": sha(j["text"].encode("utf-8")),
-                           "trim": info})
+    finish(jobs)
     measure_manifest(paths, work)
     return 0
 
@@ -1536,7 +1907,8 @@ def tail_checks(work, manifest):
             continue
         x, rate = read_float(t)
         f += [(c, f"line {m['id']}: {msg}") for c, msg in tail_problems(x, rate, (att.get(m["id"]) or {}).get("trim"))]
-        f += [("VOICE-EDGE-NOISE", f"line {m['id']}: {msg}") for msg in edge_noise_problems(x, rate)]
+        bsegs = ((att.get(m["id"]) or {}).get("breath") or {}).get("segments") or []
+        f += [("VOICE-EDGE-NOISE", f"line {m['id']}: {msg}") for msg in edge_noise_problems(x, rate, max((s["pause_s"] for s in bsegs), default=0) or None)]
         f += [("TAKE-QUALITY", f"line {m['id']}: {msg}") for msg in take_quality_problems(take_profile(x, rate))]
         mrec = ((att.get(m["id"]) or {}).get("trim") or {}).get("master")
         if mrec:                                     # VOICE-MASTER: measured again on the file, against the profile (a take voiced before the chain has no record)
@@ -1831,6 +2203,10 @@ def main(argv=None):
     ap.add_argument("out", nargs="?")
     ap.add_argument("--engine", default=ENGINE)
     ap.add_argument("--go", action="store_true")
+    ap.add_argument("--rejoin", action="store_true", help="voice: join, trim and master again from the saved segment takes (post-processing only; nothing is voiced)")
+    ap.add_argument("--resume", action="store_true", help="voice: after a worker crash, complete the unfinished lines from the audio that exists (segments are reused, never regenerated)")
+    ap.add_argument("--no-breath", action="store_true", help="voice: one utterance per line (the pre-breath behaviour); breath segmentation is on by default")
+    ap.add_argument("--inhale", action="store_true", help="voice: add a very soft inhale cut from the speaker's own reference, if it holds a clean one (default off)")
     ap.add_argument("--full", action="store_true")
     ap.add_argument("--work", default=None, help="take directory when it is not work/voice/<episode>")
     ap.add_argument("--series", default="series")
@@ -1918,7 +2294,7 @@ def main(argv=None):
             print("OK gate passed" if not fails else f"{len(fails)} finding(s)")
             return 1 if fails else 0
         if a.stage == "voice":
-            return cmd_voice(paths, a.go, engine=a.engine)
+            return cmd_voice(paths, a.go, engine=a.engine, breath=not a.no_breath, inhale=a.inhale, resume=a.resume, rejoin=a.rejoin)
         if a.stage == "supersede":
             if not a.speaker or not a.reason:
                 print("usage: supersede <episode-dir> --speaker <id> --reason '<why>'", file=sys.stderr)
