@@ -111,6 +111,16 @@ def test_caption_style():
     assert declared(caps=plates(words=3)) == []
 
 
+def test_intro_freeze_time_is_excluded_from_coverage():
+    """intro_freeze seconds leave the denominator (like a title card); any other silent gap still counts."""
+    p = plan(60.0, 0.80)                                                 # 48 s of voice in 60 s = 0.80: short
+    assert "CALM-VOICE-COVERAGE" in ids(declared(plan=p))
+    assert "CALM-VOICE-COVERAGE" not in ids(declared(plan={**p, "intro_s": 6.0}))        # 48 / (60 - 6) = 0.89: the intro is excluded
+    q = plan(60.0, 0.67)                                                 # 40 s of voice: a 14 s non-intro gap beyond the 6 s intro
+    assert "CALM-VOICE-COVERAGE" in ids(declared(plan={**q, "intro_s": 6.0}))            # 40 / 54 = 0.74: the gap is still counted
+    assert "CALM-VOICE-COVERAGE" in ids(declared(plan={**p, "intro_s": 60.0}))           # nothing left to cover: never a pass
+
+
 def test_narrator_cover():
     assert "CALM-VOICE-COVERAGE" in ids(declared(plan=plan(cover=0.67)))                     # E01 run 1: 0.67
     assert "CALM-VOICE-COVERAGE" in ids(declared(plan={"lines": []}))

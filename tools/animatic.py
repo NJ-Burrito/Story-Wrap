@@ -116,7 +116,8 @@ def timing_findings(ep, tl: dict, plan: dict, script: dict, ep_takes_s: dict[str
             out.append(F("NARRATOR-SHARE", f"the narrator is {share:.0%} of the placed voice time (at most {cc.NARRATOR_SHARE_MAX:.0%}, the vote card not counted)", "script: give the story lines to the characters; the narrator keeps the recap, night links and the vote question"))
     try:
         import qg_checks as qc
-        pl = {"lines": [{"start": ln["voice_t0"], "dur": ep_takes_s[ln["line"]]} for it, ln in cc._spoken(tl["items"]) if ln["line"] in ep_takes_s]}
+        pl = {"lines": [{"start": ln["voice_t0"], "dur": ep_takes_s[ln["line"]]} for it, ln in cc._spoken(tl["items"]) if ln["line"] in ep_takes_s],
+              "intro_s": sum(float(it.get("dur") or 0.0) for it in tl["items"] if it.get("kind") == "intro")}      # intro_freeze time is not counted in voice coverage
         sh = cc.episode_shotlist(ep, tl, plan)
         end = {"choices": [plan["choice"]["choice1"], plan["choice"]["choice2"]]}
         mine = [x for x in qc.check_calm_declared(pl, {"captions": []}, end, sh, tl["total_s"]) if "CALM-CAPTION-STYLE" not in x]     # the plates are checked above from the real states; here only voice share, wrapper, choice position, subjects

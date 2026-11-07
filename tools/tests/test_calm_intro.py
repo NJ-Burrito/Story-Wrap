@@ -66,6 +66,27 @@ def test_the_narrator_reads_the_intro():
     assert any("not in script.json" in x for x in ci.plan_problems(p, {"lines": []}))
 
 
+def test_a_recorded_deferral_exempts_only_a_valid_one():
+    """A plan may defer an intro to a later episode if it records it; the gate itself is not weaker for anyone else."""
+    p = plan()
+    p["episode"] = "E01"
+    p["intros"] = p["intros"][:2]                                                       # `lead` has no intro
+    assert any("lead first appears" in x for x in ci.plan_problems(p))                  # unrecorded: still refused
+    p["intros_deferred"] = [{"character": "lead", "to_episode": "E02", "reason": "he speaks first in E02"}]
+    assert ci.plan_problems(p) == []                                                    # recorded: allowed
+    p["intros_deferred"][0]["to_episode"] = "E01"
+    assert any("not a later episode" in x for x in ci.plan_problems(p))                 # not later: refused
+    p["intros_deferred"] = [{"character": "lead", "to_episode": "E02", "reason": " "}]
+    assert any("needs a character and a reason" in x for x in ci.plan_problems(p))
+    p["intros_deferred"] = [{"character": "hero", "to_episode": "E02", "reason": "x"}]
+    assert any("both introduced and deferred" in x for x in ci.plan_problems(p))
+    # the built timeline: a deferred character needs no intro item
+    pl = {"episode": "E01", "scenes": [SCENES[5]], "intros": [], "intros_deferred": [{"character": "hero", "to_episode": "E02", "reason": "r"}, {"character": "lead", "to_episode": "E02", "reason": "r"}]}
+    assert ci.episode_problems(pl, {"items": [{"id": "s13", "kind": "scene"}]}, {}) == []
+    del pl["intros_deferred"]
+    assert any("no intro_freeze follows" in x for x in ci.episode_problems(pl, {"items": [{"id": "s13", "kind": "scene"}]}, {}))
+
+
 def tl(freeze_in="freeze", back="page", with_intro=True):
     items = [{"id": "s02", "kind": "scene", "t0": 0, "dur": 5}]
     if with_intro:

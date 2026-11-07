@@ -2189,7 +2189,11 @@ def check_calm_declared(plan, caps, end, sl, total_s: float) -> list[str]:
             f.append(F("CALM-CAPTION-STYLE", f"{len(small)} plates under {C['caption_font_px_min']} px at 1080 wide ({', '.join(small[:4])}): calm captions are big"))
     lines = (plan or {}).get("lines", [])
     spans = [(float(l["start"]), float(l["start"]) + float(l["dur"])) for l in lines if "start" in l and "dur" in l]
-    share = _union_s(spans) / total_s if total_s > 0 and spans else 0.0
+    # intro_freeze time is excluded from the coverage count, the way a title card is. The caller declares it as plan["intro_s"] (the summed length
+    # of the timeline's intro items); coverage = placed voice seconds / (runtime - intro seconds). Every other silent gap still counts against the 0.85 floor.
+    intro_s = max(0.0, float((plan or {}).get("intro_s") or 0.0))
+    base = total_s - intro_s
+    share = _union_s(spans) / base if base > 0 and spans else 0.0
     if share < C["voice_share_min"]:
         f.append(F("CALM-VOICE-COVERAGE", f"placed voice (narrator and characters, any speaker) covers {share:.2f} of the runtime (need >= {C['voice_share_min']}): silence is not the pacing"))
     wr = (sl or {}).get("wrapper") or {}

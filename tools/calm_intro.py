@@ -104,6 +104,27 @@ def _episode_no(ep_id) -> int | None:
     return int(m.group(1)) if m else None
 
 
+def deferred_intros(plan: dict) -> tuple[set[str], list[str]]:
+    """A RECORDED exemption: an episode may keep fewer intros so that the freeze time stays short, by listing the characters it defers in the
+    plan key `intros_deferred`: [{"character", "to_episode": "E03", "reason"}]. The exemption is valid only for a character who has NO intro in this plan, with a reason, and a
+    LATER episode; that later episode then gets no exemption (introduced_before does not know them), so the intro cannot be skipped for good. Returns (valid characters, problems)."""
+    n = _episode_no(plan.get("episode"))
+    ok: set[str] = set()
+    bad: list[str] = []
+    have = {i.get("character") for i in plan.get("intros", []) or []}
+    for d in plan.get("intros_deferred", []) or []:
+        ch, to = d.get("character"), _episode_no(d.get("to_episode"))
+        if not ch or not str(d.get("reason", "")).strip():
+            bad.append(f"PLAN-INTRO a deferred intro needs a character and a reason: {d!r}")
+        elif n is None or to is None or to <= n:
+            bad.append(f"PLAN-INTRO {ch} is deferred to {d.get('to_episode')!r}, which is not a later episode than {plan.get('episode')!r}")
+        elif ch in have:
+            bad.append(f"PLAN-INTRO {ch} is both introduced and deferred")
+        else:
+            ok.add(ch)
+    return ok, bad
+
+
 def introduced_before(plan: dict, root: Path | None = None) -> set[str]:
     """Intros once per series (the owner 2026-10-28): the characters introduced in any EARLIER episode of the series, read from bible/series/<series>/episodes/E<n>*/calm-plan.json
     (`intros`; the E01 variant E01C counts as E01, the original). Only for format v2 episodes (E03 on): E01 and E02 are published and keep their own intros. A character who appears
@@ -176,7 +197,9 @@ def plan_problems(plan: dict, script: dict | None = None, root: Path | None = No
         seen_ch[ch] = iid
         if ch in known:
             f.append(f"PLAN-INTRO {ch} was introduced in an earlier episode of the series: an intro happens once per series, drop {iid} (and its transitions)")
-    firsts = {c: sid for c, sid in first_appearances(scenes).items() if c not in known}
+    defer_ok, defer_bad = deferred_intros(plan)
+    f += defer_bad
+    firsts = {c: sid for c, sid in first_appearances(scenes).items() if c not in known and c not in defer_ok}      # a valid recorded deferral is the only way out of "no intro at first appearance"
     for ch, sid in firsts.items():
         mine = [it for it in intros if it.get("character") == ch]
         if not mine:
@@ -194,7 +217,7 @@ def episode_problems(plan: dict, tl: dict, measures: dict[str, dict | None]) -> 
     f: list[str] = []
     items = tl.get("items", [])
     pos = {it["id"]: i for i, it in enumerate(items)}
-    known = introduced_before(plan)
+    known = introduced_before(plan) | deferred_intros(plan)[0]      # a recorded deferral needs no intro item in this episode
     firsts = {c: sid for c, sid in first_appearances(plan.get("scenes", [])).items() if c not in known}
     intro_items = [it for it in items if it.get("kind") == "intro"]
     for ch, sid in firsts.items():

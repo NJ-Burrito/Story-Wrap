@@ -1750,7 +1750,8 @@ def stage_gate(ep: Ep, skip_render: bool = False) -> dict:
         rec("EVENTS", not evp, "; ".join(x.split(" ", 1)[1] for x in evp[:2]) or "2 to 5 shown events, every night has one")
     try:
         import qg_checks as qc
-        pl = {"lines": [{"start": ln["voice_t0"], "dur": wav_seconds(ep.take(ln["line"]))} for it, ln in _spoken(tl["items"])]}
+        pl = {"lines": [{"start": ln["voice_t0"], "dur": wav_seconds(ep.take(ln["line"]))} for it, ln in _spoken(tl["items"])],
+              "intro_s": sum(float(it.get("dur") or 0.0) for it in tl["items"] if it.get("kind") == "intro")}      # intro_freeze time is not counted in voice coverage (qg_checks.check_calm_declared)
         sl = episode_shotlist(ep, tl, plan)
         end = {"choices": [plan["choice"]["choice1"], plan["choice"]["choice2"]]}
         declared = qc.check_calm_declared(pl, {"captions": [{**c, "line": c["line"]} for c in cp]}, end, sl, tl["total_s"])
