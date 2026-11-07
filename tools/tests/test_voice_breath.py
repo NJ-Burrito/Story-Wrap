@@ -13,8 +13,8 @@ COMMA, STOP, QMARK = "،", ".", "؟"
 
 # ------------------------------------------------------------------ segmentation
 def test_split_arabic_punctuation_keeps_the_mark_on_the_segment():
-    segs = voice.split_breath("كَيْفَ مَاتَ؟ وَمَاذَا كَانَ يَقْصِدُ بِكَلِمَاتِهِ؟")
-    assert [s["text"] for s in segs] == ["كَيْفَ مَاتَ؟", "وَمَاذَا كَانَ يَقْصِدُ بِكَلِمَاتِهِ؟"]
+    segs = voice.split_breath("أَيْنَ ذَهَبَ؟ وَمَاذَا كَانَ يَحْمِلُ مَعَهُ؟")
+    assert [s["text"] for s in segs] == ["أَيْنَ ذَهَبَ؟", "وَمَاذَا كَانَ يَحْمِلُ مَعَهُ؟"]
     assert [s["mark"] for s in segs] == ["strong", "strong"]
     for ch, kind in (("،", "comma"), (",", "comma"), ("؛", "semi"), (":", "semi"), (".", "stop"), ("!", "strong"), ("?", "strong"), ("؟", "strong")):
         s = voice.split_breath(f"أَلِفٌ بَاءٌ{ch} جِيمٌ دَالٌ")
@@ -44,8 +44,8 @@ def test_short_segments_rule():
     p = voice.breath_plan("نَعَمْ، سَمِعْتُ الرِّيحَ عِنْدَ الْبَابِ. مَنْ هُنَاكَ؟")
     assert [s["text"] for s in p] == ["نَعَمْ، سَمِعْتُ الرِّيحَ عِنْدَ الْبَابِ.", "مَنْ هُنَاكَ؟"]
     # a short sentence (. ? !) stands alone, so it gets its breath and its sentence-initial start
-    p = voice.breath_plan("مَاتَ بِجُرْحِهِ. وَكَلِمَاتُهُ؟ لَا أَعْرِفُ.")
-    assert [s["text"] for s in p] == ["مَاتَ بِجُرْحِهِ.", "وَكَلِمَاتُهُ؟", "لَا أَعْرِفُ."] and p[0]["pause_s"] == 0.40 and p[1]["pause_s"] == 0.45
+    p = voice.breath_plan("عَادَ بِسَلَامٍ. وَحَقِيبَتُهُ؟ لَا أَعْرِفُ.")
+    assert [s["text"] for s in p] == ["عَادَ بِسَلَامٍ.", "وَحَقِيبَتُهُ؟", "لَا أَعْرِفُ."] and p[0]["pause_s"] == 0.40 and p[1]["pause_s"] == 0.45
     # a short last segment after a comma joins the one before it
     p = voice.breath_plan("ذَهَبَ الرَّجُلُ إِلَى السُّوقِ، فَعَادَ.")
     assert len(p) == 1 and p[0]["text"].endswith("فَعَادَ.")
@@ -152,7 +152,7 @@ def test_cmd_voice_segments_joins_and_logs(ep):
 def test_no_breath_flag_keeps_one_utterance(ep):
     paths, root = ep
     s = voice.read_json(paths["script"])
-    s["lines"][0]["tts_text"] = "كَيْفَ مَاتَ؟ وَمَاذَا كَانَ يَقْصِدُ بِكَلِمَاتِهِ؟"
+    s["lines"][0]["tts_text"] = "أَيْنَ ذَهَبَ؟ وَمَاذَا كَانَ يَحْمِلُ مَعَهُ؟"
     voice.write_json(paths["script"], s)
     cast_with_refs(root)
     make_manifest(paths)
@@ -163,7 +163,7 @@ def test_no_breath_flag_keeps_one_utterance(ep):
     assert "breath" not in voice.attempts(paths["work"])["l01"]
 
 
-# ------------------------------------------------------------------ a worker crash (CUDA illegal memory access on line 12 of 19)
+# ------------------------------------------------------------------ a worker crash (CUDA illegal memory access partway through an episode)
 def _two_segment_ep(ep):
     paths, root = ep
     s = voice.read_json(paths["script"])
@@ -251,7 +251,7 @@ def test_rejoin_rebuilds_every_line_from_the_saved_takes_without_the_model(ep):
 
 
 def test_edge_noise_gate_reads_a_quiet_segment_after_a_long_pause_as_speech():
-    """Line 13 of a test episode: the second sentence is quieter than the shouted first one; after a 0.45 s pause the detector (run gap 0.4 s) read it as a stray run and
+    """A long episode line: the second sentence is quieter than the shouted first one; after a 0.45 s pause the detector (run gap 0.4 s) read it as a stray run and
     reported a 1 s noise-only tail. The gate now widens the gap by the take's longest pause, as the cleaner does."""
     tone = voice.room_tone_window(room_tone_ref(), RATE)
     loud = np.concatenate([band_noise(0.15, 20, 3000, 1e-4, 1), vowel(1.2, amp=0.5), band_noise(0.2, 20, 3000, 1e-4, 2)])
