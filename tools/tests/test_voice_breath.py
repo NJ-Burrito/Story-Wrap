@@ -259,3 +259,68 @@ def test_edge_noise_gate_reads_a_quiet_segment_after_a_long_pause_as_speech():
     y, _ = voice.join_segments([loud, quiet], RATE, [0.45], tone)
     assert voice.edge_noise_problems(list(y), RATE, 0.45) == []
     assert voice.edge_noise_problems(list(y), RATE) != []                                    # the plain detector does misread it
+
+
+# ------------------------------------------------------------------ join faults: speech-fragment room tone in the pauses, noise at the end
+def test_a_reference_with_no_real_floor_gets_the_fallback_not_a_speech_fragment():
+    # A reference whose quietest 0.25 s is -31.9 dBFS rms is a speech tail; tiled back and forth into the pauses it sounded like a mumble / stutter
+    loud_ref = np.concatenate([vowel(1.0), 0.1 * vowel(0.6), vowel(1.0)])                        # nothing quieter than a decaying vowel (about -40 dBFS)
+    rms_db = lambda a: 20 * np.log10(np.sqrt(np.mean(np.asarray(a) ** 2)) + 1e-12)
+    assert voice.room_tone_window(loud_ref, RATE) is None
+    assert voice.room_tone_window(room_tone_ref(), RATE) is not None                              # a true floor (-70 dBFS) is still used
+    tone = voice.room_tone_window(room_tone_ref(), RATE)
+    assert rms_db(tone) < voice.BREATH_TONE_MAX_DBFS
+    y, rec = voice.join_segments([seg_take(0.6, 1), seg_take(0.6, 3)], RATE, [0.45], None)
+    assert rec["join_noise"] == [] and rec["pause_max_dbfs"][0] <= voice.BREATH_PAUSE_MAX_DBFS
+
+
+def test_join_noise_check_flags_a_loud_pause_and_a_loud_closing_pad():
+    y = np.concatenate([vowel(0.5), 0.1 * band_noise(0.4, 100, 3000, 0.3, 2), vowel(0.5)])
+    spans = [(int(0.5 * RATE), int(0.9 * RATE))]
+    chk = voice.join_noise_check(y, RATE, spans, int(0.25 * RATE))
+    assert len(chk["join_noise"]) == 2 and chk["pause_max_dbfs"][0] > voice.BREATH_PAUSE_MAX_DBFS     # the vowel at the end is inside the closing pad too
+    quiet = np.concatenate([vowel(0.5), band_noise(0.65, 20, 3000, 1e-4, 4)])
+    assert voice.join_noise_check(quiet, RATE, [(int(0.5 * RATE), int(0.9 * RATE))], int(0.25 * RATE))["join_noise"] == []
+
+
+def test_a_stray_blip_after_the_last_word_is_not_glued_to_it():
+    # A 30 ms blip 0.38 s after the last word was joined to the word by the 0.4 s run gap; the join then kept the hum / hiss around it
+    floor = lambda s, seed: band_noise(s, 20, 3000, 3e-4, seed)
+    take = np.concatenate([floor(0.1, 1), vowel(0.9), floor(0.38, 2), 0.35 * vowel(0.04, amp=0.25), band_noise(0.6, 100, 3000, 4e-3, 3)])
+    sp_old = VE.speech_span(take, RATE, VE.params())
+    sp_new = VE.speech_span(take, RATE, dict(VE.params(), run_gap_s=voice.BREATH_SEG_RUN_GAP_S))
+    assert sp_new["offset_s"] < 1.2 < 1.3 or sp_new["offset_s"] <= sp_old["offset_s"]
+    y, rec = voice.join_segments([take, seg_take(0.6, 3)], RATE, [0.45], None)
+    assert rec["pieces"][0]["offset_s"] < 1.3 and rec["join_noise"] == []                           # the piece ends with the word, not with the blip at about 1.4 s
+
+
+def test_tail_burst_is_cut_but_a_real_final_word_after_a_pause_is_kept():
+    word = vowel(0.8)
+    gap = band_noise(0.5, 20, 3000, 3e-4, 7)
+    burst_take = np.concatenate([band_noise(0.1, 20, 3000, 3e-4, 1), word, gap, vowel(0.05), band_noise(0.3, 20, 3000, 3e-4, 8)])
+    sp = VE.speech_span(burst_take, RATE, VE.params())
+    b = voice.tail_burst_start(burst_take, RATE, sp["onset_s"], sp["offset_s"], sp["p95_db"])
+    assert b is not None and 1.3 < b < 1.5
+    word_take = np.concatenate([band_noise(0.1, 20, 3000, 3e-4, 1), word, gap, vowel(0.5), band_noise(0.3, 20, 3000, 3e-4, 8)])
+    sp = VE.speech_span(word_take, RATE, VE.params())
+    assert voice.tail_burst_start(word_take, RATE, sp["onset_s"], sp["offset_s"], sp["p95_db"]) is None   # 0.5 s of voice after a 0.5 s pause is a word (a word, not a burst)
+    y, rec = voice.join_segments([burst_take, seg_take(0.6, 3)], RATE, [0.45], None)
+    assert rec["pieces"][0]["burst_cut_s"] is not None and rec["pieces"][0]["offset_s"] < rec["pieces"][0]["burst_cut_s"] - 0.1 - 0.06 and rec["join_noise"] == []     # piece coordinates start 0.06 s before the onset
+
+
+def test_breathy_decay_after_the_last_word_is_cut_short():
+    # After a last word the model kept breathing at -35 to -40 dB under the speech for 0.5 s, and the edge cleaner read it as voiced decay; it ended the line
+    take = np.concatenate([band_noise(0.1, 20, 3000, 3e-4, 1), vowel(0.8), 0.012 * vowel(0.5), band_noise(0.3, 20, 3000, 3e-4, 2)])      # word, then a 0.5 s breathy decay about 34 dB down
+    sp = VE.speech_span(take, RATE, VE.params())
+    ll = voice.last_loud_end(take, RATE, sp["onset_s"], sp["offset_s"], sp["p95_db"])
+    assert ll is not None and 0.85 < ll < 1.0                                                   # the word ends at 0.9 s
+    y, rec = voice.join_segments([take, seg_take(0.6, 3)], RATE, [0.45], None)
+    assert rec["pieces"][0]["kept_s"] <= (ll - sp["onset_s"]) + voice.BREATH_LEAD_KEEP_S + voice.BREATH_DECAY_KEEP_S + 0.02   # lead keep + the word + 0.15 s of decay, not 0.5 s
+    assert rec["join_noise"] == []
+
+
+def test_day_card_length_is_a_plan_option_with_bounds():
+    import calm_compose as cc
+    assert not [m for m in cc.validate_plan({"day_card_s": 0.5}) if m.startswith("PLAN-DURATION")]      # 0.5 s
+    for bad in (0.2, 6, "2"):
+        assert any(m.startswith("PLAN-DURATION") for m in cc.validate_plan({"day_card_s": bad})), bad

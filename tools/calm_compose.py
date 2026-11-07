@@ -365,6 +365,8 @@ def validate_algo(plan: dict, script: dict | None, names: list[str]) -> list[str
 def validate_plan(plan: dict, script: dict | None = None) -> list[str]:
     """Static checks of calm-plan.json (the writer's output). Returns 'ID message' strings."""
     f = []
+    if "day_card_s" in plan and not (isinstance(plan["day_card_s"], (int, float)) and 0.5 <= plan["day_card_s"] <= 4.0):
+        f.append(f"PLAN-DURATION day_card_s {plan['day_card_s']!r} outside 0.5..4 s")
     for k in ("series", "episode", "day", "scenes", "choice") + (("recap",) if recap_expected(plan) else ()):
         if k not in plan:
             f.append(f"PLAN-FIELD missing '{k}'")
@@ -669,7 +671,7 @@ def stage_plan(ep: Ep) -> dict:
     day_done = False
     for s in plan["scenes"]:
         if s.get("block", "story") != "consequence" and not day_done:
-            wr, wd = plan.get("written"), 2.0
+            wr, wd = plan.get("written"), float(plan.get("day_card_s", 2.0))      # per-plan option (e.g. 0.5 s so a second hook lands under a duration limit); absent = 2.0 s as before
             if wr:     # C3: the day card is a written object and the narrator reads it
                 wt = ep.take(wr["line"])
                 if not wt.is_file():

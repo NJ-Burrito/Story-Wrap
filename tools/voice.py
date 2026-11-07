@@ -1225,6 +1225,17 @@ BREATH_TONE_XFADE_S = 0.03
 BREATH_TONE_MIN_DBFS = -84.0      # a room tone quieter than this is raised to it: under about 1.5 LSB of 16-bit it would round to digital zero in the wav
 BREATH_FALLBACK_DBFS = -72.0      # room tone when the reference has no usable quiet stretch (every window holds digital zeros)
 BREATH_TONE_MAX_DB = 15.0         # a room-tone window must sit at least this far under the reference's loud frames (p95), else it is speech, not a floor
+BREATH_TONE_MAX_DBFS = -50.0      # a "room tone" louder than this is a fragment of speech, not a floor (measured on a real reference: its quietest 0.25 s was only 17 dB under
+                                  # its speech, and tiled forwards and backwards into the pauses it was heard as a mumble / stutter); the seeded fallback floor is used instead
+BREATH_SEG_RUN_GAP_S = 0.25       # inside ONE breath segment two voiced stretches more than this apart are not one phrase: the second is a model run-on / stray blip
+                                  # (the default 0.4 s glued a 30 ms blip 0.38 s after the last word to the word, and the join kept ~0.5 s of hum / hiss after it)
+BREATH_BURST_GAP_S = 0.25         # a loud stretch this far after the previous loud stretch ...
+BREATH_BURST_MAX_S = 0.15         # ... and shorter than this is a model click / stray syllable after the sentence ended, not a word: the piece is cut before it
+BREATH_BURST_BELOW_P95_DB = 20.0  # "loud" = within this many dB of the take's p95
+BREATH_DECAY_BELOW_P95_DB = 26.0  # after the last frame louder than p95 minus this, at most BREATH_DECAY_KEEP_S of the take is kept; ...
+BREATH_DECAY_KEEP_S = 0.15        # ... the model's breathy 35-40 dB-down decay (0.5 s of it can end a line) is not part of the word (the edge cleaner allows up to 0.35 s of "voiced decay")
+BREATH_PAUSE_MAX_DBFS = -42.0     # join check: loudest 25 ms frame inside a built pause (speech-span edges included); louder = noise or speech in the pause
+BREATH_TAIL_MAX_DBFS = -45.0      # join check: loudest 25 ms frame of the last BREATH_TAIL_PAD_S of the joined take
 BREATH_MAX_ZERO_RUN_S = 0.002     # a room-tone window with a longer run of exact zeros is a gate/denoiser splice, not a microphone
 BREATH_INHALE = False             # optional soft inhale (default OFF, owner decision: only if a clean breath can be cut from the speaker's own reference)
 INHALE_PEAK_DBFS = -38.0          # "very soft"
@@ -1304,7 +1315,7 @@ def breath_plan(tts_text):
     return merge_short(split_breath(tts_text))
 
 
-def room_tone_window(x, rate, win_s=BREATH_TONE_WIN_S, max_zero_run_s=BREATH_MAX_ZERO_RUN_S):
+def room_tone_window(x, rate, win_s=BREATH_TONE_WIN_S, max_zero_run_s=BREATH_MAX_ZERO_RUN_S, max_dbfs=BREATH_TONE_MAX_DBFS):
     """The quietest stretch of the reference (lowest mean square over `win_s`), skipping stretches with a run of exact zeros. -> numpy array or None."""
     import numpy as np
     x = np.asarray(x, dtype="float64")
@@ -1325,6 +1336,8 @@ def room_tone_window(x, rate, win_s=BREATH_TONE_WIN_S, max_zero_run_s=BREATH_MAX
             continue
         if float(np.sqrt(e[k])) <= 0.0:
             continue
+        if 20 * math.log10(float(np.sqrt(e[k])) + 1e-12) > max_dbfs:
+            return None                                   # the quietest usable stretch is still not a floor (speech tail): use the fallback noise
         return seg - float(np.mean(seg))
     return None
 
@@ -1396,6 +1409,64 @@ def _fade_edges(p, rate, fi_s, fo_s):
     return p
 
 
+def tail_burst_start(x, rate, onset_s, offset_s, p95_db, win_s=0.025):
+    """Second of the first loud frame of an isolated short burst at the END of a segment take (BREATH_BURST_*), else None. Loud frames are grouped; two groups
+    more than BREATH_BURST_GAP_S apart are separate stretches; the last stretch is a burst when it is shorter than BREATH_BURST_MAX_S."""
+    import numpy as np
+    x = np.asarray(x, dtype="float64")
+    n = max(1, int(win_s * rate))
+    a, b = int(onset_s * rate), min(len(x), int((offset_s + BREATH_TAIL_KEEP_S) * rate))
+    idx = [i for i in range(0, max(0, b - a - n + 1), n) if 10 * math.log10(float(np.mean(x[a + i:a + i + n] ** 2)) + 1e-12) >= p95_db - BREATH_BURST_BELOW_P95_DB]
+    if len(idx) < 2:
+        return None
+    gap_f = BREATH_BURST_GAP_S * rate / n                  # frames
+    groups = [[idx[0]]]
+    for i in idx[1:]:
+        if (i - groups[-1][-1]) / n - 1 > gap_f:
+            groups.append([i])
+        else:
+            groups[-1].append(i)
+    last = groups[-1]
+    if len(groups) >= 2 and len(last) * n / rate < BREATH_BURST_MAX_S:
+        return (a + last[0]) / rate
+    return None
+
+
+def last_loud_end(x, rate, onset_s, offset_s, p95_db, win_s=0.025):
+    """End (s) of the last 25 ms frame inside [onset, offset + tail keep] that is louder than p95 minus BREATH_DECAY_BELOW_P95_DB; None if there is none."""
+    import numpy as np
+    x = np.asarray(x, dtype="float64")
+    n = max(1, int(win_s * rate))
+    a, b = int(onset_s * rate), min(len(x), int((offset_s + BREATH_TAIL_KEEP_S) * rate))
+    last = None
+    for i in range(0, max(0, b - a - n + 1), n):
+        if 10 * math.log10(float(np.mean(x[a + i:a + i + n] ** 2)) + 1e-12) >= p95_db - BREATH_DECAY_BELOW_P95_DB:
+            last = (a + i + n) / rate
+    return last
+
+
+def frame_max_dbfs(x, rate, win_s=0.025):
+    """Loudest win_s frame of x in dBFS (-200 for an empty/zero array)."""
+    import numpy as np
+    x = np.asarray(x, dtype="float64")
+    n = max(1, int(win_s * rate))
+    if len(x) == 0:
+        return -200.0
+    best = max(float(np.mean(x[i:i + n] ** 2)) for i in range(0, max(1, len(x) - n + 1), n))
+    return round(10 * math.log10(best + 1e-20), 1)
+
+
+def join_noise_check(y, rate, spans, tail_n):
+    """Deterministic check of a joined take (a speech-fragment room tone, noise after the last word): loudest frame in each built pause and in the closing pad.
+    -> {"pause_max_dbfs": [...], "tail_max_dbfs": x, "join_noise": [problems]}."""
+    pm = [frame_max_dbfs(y[a:b], rate) for a, b in spans]
+    tm = frame_max_dbfs(y[len(y) - tail_n:], rate)
+    bad = [f"pause {k} peaks at {v} dBFS (limit {BREATH_PAUSE_MAX_DBFS})" for k, v in enumerate(pm) if v > BREATH_PAUSE_MAX_DBFS]
+    if tm > BREATH_TAIL_MAX_DBFS:
+        bad.append(f"closing pad peaks at {tm} dBFS (limit {BREATH_TAIL_MAX_DBFS})")
+    return {"pause_max_dbfs": pm, "tail_max_dbfs": tm, "join_noise": bad}
+
+
 def join_segments(parts, rate, pauses, tone, dones=None, inhale=None, kinds=None):
     """Join the segment takes with breath pauses. parts = float arrays (raw takes at `rate`); pauses[k] = seconds of quiet between the speech of segment k
     and k+1; tone = room-tone window (numpy) cut from the speaker's reference, or None for the seeded fallback floor.
@@ -1406,21 +1477,28 @@ def join_segments(parts, rate, pauses, tone, dones=None, inhale=None, kinds=None
     -> (numpy array, record with the designed and the measured gap per join)."""
     import numpy as np
     import voice_edges as VE
-    E = VE.params()
+    E = dict(VE.params(), run_gap_s=BREATH_SEG_RUN_GAP_S)       # a segment is one short phrase: a stray stretch further than this from its words is run-on
     if tone is not None:
         rms = float(np.sqrt(np.mean(np.asarray(tone) ** 2)))
         floor = 10 ** (BREATH_TONE_MIN_DBFS / 20)
         tone = np.asarray(tone) * (floor / rms if rms < floor else 1.0)
-    pieces = []
+    pieces, bursts = [], []
     for k, x in enumerate(parts):
         x = np.asarray(x, dtype="float64")
         sp = VE.speech_span(x, rate, E, done_after_s=(dones[k] if dones else None))
+        burst = tail_burst_start(x, rate, sp["onset_s"], sp["offset_s"], sp["p95_db"])
+        if burst is not None:                    # a stray burst after the last word: the piece ends before it (the 0.1 s tail keep stops short of it)
+            sp = dict(sp, offset_s=min(sp["offset_s"], burst - BREATH_TAIL_KEEP_S - 0.02), burst_cut_s=round(burst, 3))
+        ll = last_loud_end(x, rate, sp["onset_s"], sp["offset_s"], sp["p95_db"])
+        if ll is not None and ll + BREATH_DECAY_KEEP_S - BREATH_TAIL_KEEP_S < sp["offset_s"]:      # the word is over: keep a short decay, drop the breathy tail
+            sp = dict(sp, offset_s=ll + BREATH_DECAY_KEEP_S - BREATH_TAIL_KEEP_S)
         a = max(0, int(round((sp["onset_s"] - BREATH_LEAD_KEEP_S) * rate)))
         b = min(len(x), int(round((sp["offset_s"] + BREATH_TAIL_KEEP_S) * rate)))
         on = int(round(sp["onset_s"] * rate)) - a
         off = int(round(sp["offset_s"] * rate)) - a
         p = _fade_edges(x[a:b], rate, BREATH_FADE_S if a > 0 else 0.01, BREATH_FADE_S if b < len(x) else 0.02)
         pieces.append((p, on, off))
+        bursts.append(sp.get("burst_cut_s"))
     fo_n = int(BREATH_FADE_S * rate)
     lead_n, tail_n = int(BREATH_LEAD_PAD_S * rate), int(BREATH_TAIL_PAD_S * rate)
     # the quiet between two speech spans is (what the take kept after its last sound) + (room tone) + (what the next kept before its first sound); a take
@@ -1456,7 +1534,8 @@ def join_segments(parts, rate, pauses, tone, dones=None, inhale=None, kinds=None
         p1, on1, off1 = starts[k + 1]
         rec.append({"after_segment": k, "designed_s": round(pauses[k], 3), "measured_s": round(((p1 + on1) - (p0 + off0)) / rate, 3)})
         spans.append((p0 + off0, p1 + on1))
-    return out, {"joins": rec, "pause_spans": spans, "room_tone": "reference" if tone is not None else f"fallback {BREATH_FALLBACK_DBFS:.0f} dBFS noise", "inhale": inhale is not None}
+    chk = join_noise_check(out, rate, spans, tail_n)
+    return out, {"joins": rec, "pause_spans": spans, "pieces": [{"onset_s": round(on / rate, 3), "offset_s": round(off / rate, 3), "burst_cut_s": bc, "kept_s": round(len(p) / rate, 3)} for (p, on, off), bc in zip(pieces, bursts)], **chk, "room_tone": "reference" if tone is not None else f"fallback {BREATH_FALLBACK_DBFS:.0f} dBFS noise", "inhale": inhale is not None}
 
 
 def max_zero_run_s(x, rate):
