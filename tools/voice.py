@@ -120,12 +120,25 @@ def casting_problems(casting, reg):
     out = []
     emos = set(casting["emotions"])
     voices_used = {}
+    chatterbox = casting.get("engine", ENGINE) == ENGINE
     for cid, c in casting["characters"].items():
-        if c["voice"] not in VOICES:
+        if chatterbox:
+            # Chatterbox clones the reference clip: `voice` is only a label (a source or clip code). The Gemini voice-name list
+            # applies to no engine any more (Gemini banned 2026-10-23), so it is not required here.
+            if not isinstance(c.get("voice"), str) or not c["voice"].strip():
+                out.append(("VOICE-CAST", f"{cid}: voice must be a non-empty label (the set or clip code of its reference)"))
+            code = (c.get("reference") or {}).get("source_code")
+            if code and code != c.get("voice"):
+                out.append(("VOICE-CAST", f"{cid}: voice {c.get('voice')!r} differs from the reference source_code {code!r}"))
+        elif c["voice"] not in VOICES:
             out.append(("VOICE-CAST", f"{cid}: voice {c['voice']!r} is not one of the 30 built-in voices"))
         if c["voice"] in voices_used:
-            out.append(("VOICE-CAST", f"{cid} and {voices_used[c['voice']]} share the voice {c['voice']}"))
+            declared = set(casting.get("reused_voices", {}).get(c["voice"], []))     # a deliberate reuse is listed on both roles
+            if not (chatterbox and {cid, voices_used[c["voice"]]} <= declared):
+                out.append(("VOICE-CAST", f"{cid} and {voices_used[c['voice']]} share the voice {c['voice']}"))
         voices_used[c["voice"]] = cid
+        if (c.get("reference") or {}).get("license") == CLEARED and (lp := licence_problem(c["reference"])):
+            out.append(("VOICE-REF", f"{cid}: {lp}"))
         if "carried in text" not in c.get("accent", ""):
             out.append(("VOICE-CAST", f"{cid}: accent line must say where the accent lives ('carried in text')"))
         for e, ids in c["styles"].items():
@@ -417,6 +430,38 @@ def read_float(path):
     return [x * sc for x in a[::ch]], rate
 
 
+def resample(x, rate, target=PCM_RATE, taps=24):
+    """Band-limited (windowed-sinc, Hann) resample of floats from `rate` to `target`, stdlib only. Used by REF-QUALITY so a
+    44.1 / 48 kHz reference is measured on the same 24 kHz grid as every other (before 2026-11-07 its frames were longer than
+    the 512-point FFT and `refcheck` crashed with IndexError). Returns x unchanged when the rates are equal."""
+    if rate == target or not x:
+        return x, rate
+    g = math.gcd(rate, target)
+    up, down = target // g, rate // g           # out[j] sits at input position j * down / up
+    cut = min(1.0, target / rate) * 0.95        # cutoff re the input Nyquist (anti-alias when going down)
+    coef = {}
+    n_out = (len(x) * up) // down
+    out = []
+    half = taps if cut >= 1.0 else int(math.ceil(taps / cut))
+    for j in range(n_out):
+        pos_num = j * down
+        i0, ph = divmod(pos_num, up)
+        c = coef.get(ph)
+        if c is None:
+            frac = ph / up
+            c = []
+            for k in range(-half + 1, half + 1):
+                t = k - frac
+                s = 1.0 if t == 0 else math.sin(math.pi * cut * t) / (math.pi * cut * t)
+                c.append(cut * s * (0.5 + 0.5 * math.cos(math.pi * t / half)))
+            coef[ph] = c
+        a = i0 - half + 1
+        seg = x[max(0, a):i0 + half + 1]
+        cc = c[max(0, -a):max(0, -a) + len(seg)]
+        out.append(sum(map(float.__mul__, seg, cc)))
+    return out, target
+
+
 def write_wav16(path, samples, rate):
     """Write floats in [-1, 1] as 16-bit mono wav, atomically."""
     pcm = array.array("h", (max(-32768, min(32767, int(round(x * 32767)))) for x in samples))
@@ -668,6 +713,39 @@ REFQ = {
     "max_hum_db": 40.0,                        # mains hum (50/60 Hz and harmonics) over the pause spectrum next to it; approved 5 to 10, recast han 31 (the owner approved it by ear, so hum is NOT what he hears as noise; the limit only stops gross hum)
 }
 _REFQ_CACHE = {}
+DEFAULT_REFQ_PROFILE = "common-voice"
+# Profile "curated-clean" (2026-11-07), chosen per casting entry with reference.refq_profile. The REFQ limits above are calibrated on raw
+# Common Voice clips. The curated voice set holds curated refs that were denoised and level-normalised, which the CV limits read as a
+# gate/denoiser fingerprint, a hot crest and a loud floor: all 25 failed. Limits below come from the measured distribution of the 12
+# grade-A/B curated refs (44.1 kHz, `voices/**/ref.wav`, measured with ref_profile after a resample to 24 kHz). Measured min/max across the 12:
+#   floor_dbfs -83.2..-38.4   snr_db 21.5..68.4   crest_db 10.2..22.6   top_db -83.2..-16.8   decay20_s 0.04..0.31
+#   zero_frac 0.002..0.1034   centroid_hz 384..937   hum_db 3.3..11.7   clip_samples 0 in all
+# Rule: a limit that the A/B refs break is moved to the worst A/B value plus a small margin; a limit all A/B refs already meet stays as in
+# REFQ (no loosening without evidence). The one Tukey outlier on a quality metric (top_db -83.2, muffled) is NOT used: -58 stays.
+# Not loosened: clipping (0 samples), muffled (-58), hum (40), reference length. Added: sample rate must be 24/44.1/48 kHz. Details and
+# per-ref numbers: research/voice/refq-curated-clean-2026-11-07.md.
+REFQ_CURATED = {
+    **REFQ,
+    "calibrated_on": "12 grade-A/B refs of the curated voice set, 2026-11-07 (see the comment above)",
+    "min_up_votes": 0,                    # the set is graded by measurement, not by community votes
+    "max_floor_dbfs": -36.0,              # A/B worst -38.4 + 2.4 dB
+    "min_snr_db": 19.0,                   # A/B worst 21.5 - 2.5 dB
+    "min_crest_db": 8.0,                  # A/B worst 10.2 - 2.2 dB; normalised refs have low crest
+    "max_decay20_s": 0.35,                # A/B worst 0.31 + 0.04
+    "max_zero_frac": 0.12,                # A/B worst 0.1034: denoised refs hold digital-silence pauses
+    "min_floor_dbfs": -90.0,              # A/B lowest -83.2 - 6.8 dB; lower-grade refs at -97 and -120 stay refused
+    "min_centroid_hz": 350.0,             # A/B lowest 384 - 34 Hz; the banned Common Voice narrator (334 Hz) stays refused
+    "allowed_rates": (24000, 44100, 48000),   # any other source rate fails (8/16/22.05 kHz are band-limited, 96 kHz is unexpected)
+    "refuse_never_clone": True,           # the set flags voices it says never to clone (meta never_clone)
+}
+REFQ_PROFILES = {DEFAULT_REFQ_PROFILE: REFQ, "curated-clean": REFQ_CURATED}
+
+
+def refq_limits(profile):
+    try:
+        return REFQ_PROFILES[profile or DEFAULT_REFQ_PROFILE]
+    except KeyError:
+        raise Fail("REF-QUALITY", f"unknown REF-QUALITY profile {profile!r} (known: {', '.join(REFQ_PROFILES)})") from None
 
 
 def _goertzel(seg, rate, f):
@@ -760,6 +838,10 @@ def ref_quality_problems(prof, prov=None, q=REFQ):
     """-> list of messages (empty = the reference may be cloned). `prov` is the clip's provenance dict (votes)."""
     out = []
     # a published audiobook (LibriVox, public domain) has no community votes; every other clip needs them
+    if q.get("allowed_rates") and prof.get("source_rate") not in q["allowed_rates"]:
+        out.append(f"sample rate {prof.get('source_rate')} Hz (allowed: {', '.join(str(r) for r in q['allowed_rates'])})")
+    if q.get("refuse_never_clone") and prov is not None and prov.get("never_clone"):
+        out.append("the set marks this voice never_clone")
     if prov is not None and prov.get("validation") != "published-audiobook" and (int(prov.get("up_votes", 0)) < q["min_up_votes"] or int(prov.get("down_votes", 0)) > q["max_down_votes"]):
         out.append(f"not validated: {prov.get('up_votes', 0)} up / {prov.get('down_votes', 0)} down votes "
                    f"(need >= {q['min_up_votes']} up, {q['max_down_votes']} down)")
@@ -787,19 +869,32 @@ def ref_quality_problems(prof, prov=None, q=REFQ):
     return out
 
 
-def check_reference_quality(wav, prov_path=None):
-    """REF-QUALITY on one reference wav (24 kHz 16-bit) -> (profile, problems). Cached per file state."""
+def native_counts(x):
+    """Counts that only mean something on the file's own samples (a resampler would change them): full-scale and exact-zero."""
+    return {"clip_samples": sum(1 for v in x if abs(v) >= 0.999), "zero_frac": round(sum(1 for v in x if v == 0.0) / max(1, len(x)), 4)}
+
+
+def check_reference_quality(wav, prov_path=None, profile=DEFAULT_REFQ_PROFILE):
+    """REF-QUALITY on one reference wav (16-bit PCM or float32; 24 kHz is the engine's rate, higher rates are resampled to it
+    for the measurement instead of crashing) -> (profile, problems). `profile` names the limit set (REFQ_PROFILES). Cached per file state."""
     wav = Path(wav)
+    q = refq_limits(profile)
     st = wav.stat()
     key = (str(wav), st.st_mtime_ns, st.st_size)
     if key not in _REFQ_CACHE:
         x, rate = read_float(wav)
         if len(x) < rate:
             raise Fail("REF-QUALITY", f"{wav}: under 1 s of audio")
-        _REFQ_CACHE[key] = ref_profile(x, rate)
+        if rate > PCM_RATE:
+            y, _ = resample(x, rate)
+            prof = {**ref_profile(y, PCM_RATE), **native_counts(x)}
+        else:
+            prof = ref_profile(x, rate)
+        prof["source_rate"] = rate
+        _REFQ_CACHE[key] = prof
     prof = _REFQ_CACHE[key]
     prov = read_json(prov_path) if prov_path and Path(prov_path).exists() else None
-    return prof, ref_quality_problems(prof, prov)
+    return prof, ref_quality_problems(prof, prov, q)
 
 
 # ---------------------------------------------------------------- TAKE-QUALITY: is the generated take itself clean? (2026-10-25)
@@ -973,7 +1068,19 @@ def engine_ok(casting, engine=ENGINE):
                                    "Google Gemini is banned for good; no other model may voice a line.")
 
 
-LICENSES = ("CC0-1.0", "PUBLIC-DOMAIN")   # PUBLIC-DOMAIN (owner, 2026-10-25 task): only with a source_url and a licence_evidence_url in the provenance
+CLEARED = "OWNER-CLEARED-COMMERCIAL"
+LICENSES = ("CC0-1.0", "PUBLIC-DOMAIN", CLEARED)   # PUBLIC-DOMAIN (owner, 2026-10-25 task): only with a source_url and a licence_evidence_url in the provenance
+# OWNER-CLEARED-COMMERCIAL (2026-11-07): the owner confirmed the clips of a curated voice set are free for commercial reuse. Valid
+# only with an `owner_clearance` record {who, date, scope} on the casting entry's reference; without it the validator refuses.
+CLEARANCE_FIELDS = ("who", "date", "scope")
+
+
+def licence_problem(ref):
+    """-> message when `ref` (a casting `reference` dict) claims OWNER-CLEARED-COMMERCIAL without a complete owner_clearance record."""
+    rec = ref.get("owner_clearance")
+    if not isinstance(rec, dict) or any(not str(rec.get(k, "")).strip() for k in CLEARANCE_FIELDS):
+        return f"licence {CLEARED} needs an owner_clearance record with {', '.join(CLEARANCE_FIELDS)}"
+    return None
 BANNED_VOICES = "bible/voices-banned.json"
 
 
@@ -1005,14 +1112,16 @@ def reference_for(casting, speaker, repo=REPO, check=True):
     if not p.exists():
         raise Fail("VOICE-REF", f"{speaker}: reference clip {p} not found")
     if ref.get("license") not in LICENSES or not ref.get("provenance") or not prov.exists():
-        raise Fail("VOICE-REF", f"{speaker}: a reference clip must be CC0-1.0 (or verifiably public domain, 2026-10-25) with a provenance file")
+        raise Fail("VOICE-REF", f"{speaker}: a reference clip must be CC0-1.0 (or verifiably public domain, 2026-10-25, or owner-cleared with a clearance record) with a provenance file")
+    if ref.get("license") == CLEARED and (lp := licence_problem(ref)):
+        raise Fail("VOICE-REF", f"{speaker}: {lp}")
     if ref.get("license") == "PUBLIC-DOMAIN" and not (read_json(prov).get("licence_evidence_url") and read_json(prov).get("source_url")):
         raise Fail("VOICE-REF", f"{speaker}: a public-domain reference needs source_url and licence_evidence_url in its provenance")
     ban = banned_reason(ref, read_json(prov), load_banned(repo))
     if ban:
         raise Fail("VOICE-BANNED-REF", f"{speaker}: reference {clip} is a {ban}. A banned voice is never cast again; choose another CC0 clip.")
     if check:
-        _, bad = check_reference_quality(p, prov)
+        _, bad = check_reference_quality(p, prov, ref.get("refq_profile", DEFAULT_REFQ_PROFILE))
         if bad:
             raise Fail("REF-QUALITY", f"{speaker}: reference {clip} is not clean enough to clone: " + "; ".join(bad) +
                        ". Choose another CC0 clip (uv run tools/voice.py refcheck <wav> <provenance.json>).")
@@ -1725,6 +1834,7 @@ def main(argv=None):
     ap.add_argument("--full", action="store_true")
     ap.add_argument("--work", default=None, help="take directory when it is not work/voice/<episode>")
     ap.add_argument("--series", default="series")
+    ap.add_argument("--profile", default=DEFAULT_REFQ_PROFILE, help="refcheck: REF-QUALITY limit set (" + ", ".join(REFQ_PROFILES) + ")")
     ap.add_argument("--reason", default="")
     ap.add_argument("--baseline", default=None, help="retext: the manifest as it was when the old takes were voiced (takes made before tts_sha256 was logged)")
     ap.add_argument("--speaker", default="")
@@ -1749,9 +1859,9 @@ def main(argv=None):
             return chatterbox_worker(a.episode)
         if a.stage == "refcheck":
             if not a.episode:
-                print("usage: refcheck <ref.wav> [provenance.json]", file=sys.stderr)
+                print("usage: refcheck <ref.wav> [provenance.json] [--profile NAME]", file=sys.stderr)
                 return 2
-            prof, bad = check_reference_quality(a.episode, a.out)
+            prof, bad = check_reference_quality(a.episode, a.out, a.profile)
             if a.out and Path(a.out).exists():
                 ban = banned_reason({}, read_json(a.out), load_banned())
                 if ban:
