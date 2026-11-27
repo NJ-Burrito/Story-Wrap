@@ -8,6 +8,7 @@ import pytest
 
 import voice
 import voice_edges as VE
+from modsrc import module_source  # noqa: E402  (calm_compose / voice / qg_checks are split into <name>_parts/)
 
 RATE = 24000
 FIX = Path(__file__).parent / "fixtures" / "audio" / "j03-L01-raw-tail.npz"
@@ -218,7 +219,7 @@ def test_eos_guard_forces_eos_after_the_budget_and_not_before():
 
 def test_eos_budget_comes_from_the_profile_and_reaches_the_worker_job():
     assert voice.eos_after_complete_tokens() == round(voice.sound_profile()["take"]["eos"]["after_complete_max_s"] * 25)
-    src = Path(voice.__file__).read_text(encoding="utf-8")
+    src = module_source(voice.__file__)
     assert '"eos_after_complete_tokens": eos_after_complete_tokens()' in src and "install_eos_guard(AlignmentStreamAnalyzer" in src
 
 

@@ -65,6 +65,7 @@
       "kb/quality/viseme-track.schema.json"
     ],
     "frozen_globs": [
+      "tools/qg_checks_parts/**",
       "reference/**"
     ],
     "regenerated_only": [

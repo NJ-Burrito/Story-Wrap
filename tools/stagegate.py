@@ -114,11 +114,11 @@ def code_files(*names: str) -> list[Path]:
 
 # the tools a stage's result depends on: a change to one of them reruns that stage (a changed rig, caption or mix rule must not leave a stale result behind; E01C, 2026-10-25)
 CODE = {
-    "plan": ("calm_compose.py", "calm_intro.py", "calm_sfx.py", "gloss.py", "stagegate.py"),
-    "animatic": ("calm_compose.py", "calm_intro.py", "calm_sfx.py", "calm_mix.py", "gloss.py", "cap_sentence.py", "cap_shaping.py", "cap_face.py", "audio_checks.py", "qg_checks.py", "animatic.py", "arabic_display.py"),
+    "plan": ("calm_compose.py", "calm_compose_parts", "calm_intro.py", "calm_sfx.py", "gloss.py", "stagegate.py"),
+    "animatic": ("calm_compose.py", "calm_compose_parts", "calm_intro.py", "calm_sfx.py", "calm_mix.py", "gloss.py", "cap_sentence.py", "cap_shaping.py", "cap_face.py", "audio_checks.py", "qg_checks.py", "qg_checks_parts", "animatic.py", "arabic_display.py"),
     "shots": ("render", "shotlib", "templates", "shot.py", "calm.py", "calm_cards.py", "calm_intro.py", "calm_kit.py"),
-    "compose": ("calm_compose.py", "compose.py", "cap_sentence.py", "cap_shaping.py", "cap_face.py", "calm_mix.py", "calm_sfx.py", "calm_cards.py", "gloss.py", "arabic_display.py"),
-    "gates": ("calm_compose.py", "qg_checks.py", "quality_gate.py", "audio_checks.py", "cap_sentence.py", "gloss.py"),
+    "compose": ("calm_compose.py", "calm_compose_parts", "compose.py", "cap_sentence.py", "cap_shaping.py", "cap_face.py", "calm_mix.py", "calm_sfx.py", "calm_cards.py", "gloss.py", "arabic_display.py"),
+    "gates": ("calm_compose.py", "calm_compose_parts", "qg_checks.py", "qg_checks_parts", "quality_gate.py", "audio_checks.py", "cap_sentence.py", "gloss.py"),
 }
 
 

@@ -11,6 +11,7 @@ import calm_compose as cx
 import daily
 from shotlib.engine import hash_inputs
 import sw_fixtures
+from modsrc import module_source  # noqa: E402  (calm_compose / voice / qg_checks are split into <name>_parts/)
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -198,7 +199,7 @@ def test_card_trace_stage_hashes_the_backdrop_picture(tmp_path):
 def test_the_gloss_is_measured_in_the_faces_it_is_drawn_in():
     faces = cx.measure_faces()
     assert f"900 {cx.CAP_FONT_PX}px thmanyahsans" in faces and f"700 {cx.GLOSS_FONT_PX}px thmanyahsans" in faces
-    src = (REPO / "tools" / "calm_compose.py").read_text(encoding="utf-8")
+    src = module_source(REPO / "tools" / "calm_compose.py")
     assert "faces.map(f => document.fonts.load(f" in src and "measure_faces()])" in src
 
 

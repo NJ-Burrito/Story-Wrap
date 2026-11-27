@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 import voice_master as VM
+from modsrc import module_source  # noqa: E402  (calm_compose / voice / qg_checks are split into <name>_parts/)
 
 RATE = 24000
 PROFILE = VM.load_profile()
@@ -185,7 +186,7 @@ def test_mix_modules_read_the_profile_with_their_old_values():
 
 
 def test_calm_loudness_gate_reads_the_profile():
-    src = (Path(VM.TOOLS) / "calm_compose.py").read_text(encoding="utf-8")
+    src = module_source(Path(VM.TOOLS) / "calm_compose.py")
     assert "-15.0 <= loud" not in src and 'SOUND["delivery"]["instagram"]' in src
 
 
