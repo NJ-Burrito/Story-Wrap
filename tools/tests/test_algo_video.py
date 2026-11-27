@@ -16,6 +16,7 @@ import calm_compose as cc
 import sw_fixtures
 import watermark as WM
 from test_daily import mk_root, plan_ok, script_ok
+from modsrc import module_source  # noqa: E402  (calm_compose / voice / qg_checks are split into <name>_parts/)
 
 
 @pytest.fixture(autouse=True)
@@ -380,7 +381,7 @@ def test_apply_puts_the_mark_on_every_frame_and_changes_nothing_else(tmp_path, f
 
 
 def test_assemble_lays_the_mark_in_its_last_step():
-    src = Path(cc.__file__).read_text(encoding="utf-8")
+    src = module_source(cc.__file__)
     i = src.index("def stage_assemble")
     body = src[i:src.index("def stage_cover")]
     assert "WM.filter_chain(acc, idx" in body and body.index("WM.filter_chain") > body.index("lit_plates") and body.index("WM.filter_chain") < body.index('"-i", ep.mix')

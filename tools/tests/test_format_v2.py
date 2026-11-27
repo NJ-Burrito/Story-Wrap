@@ -11,6 +11,7 @@ import calm_intro as ci   # noqa: E402
 import daily   # noqa: E402
 import qg_checks as qc   # noqa: E402
 import sw_fixtures
+from modsrc import module_source  # noqa: E402  (calm_compose / voice / qg_checks are split into <name>_parts/)
 
 
 def L(i, speaker="narrator"):
@@ -207,5 +208,5 @@ def test_critic_checks_dialogue_events_intros_and_nights():
 def test_the_old_narrator_check_ids_are_gone_from_the_tools():
     root = Path(__file__).resolve().parents[1]
     for name in ("qg_checks.py", "calm_compose.py", "animatic.py", "stagegate.py", "compose.py"):
-        txt = (root / name).read_text(encoding="utf-8")
+        txt = module_source(root / name)
         assert '"CALM-NARRATOR"' not in txt, name

@@ -12,6 +12,7 @@ import pytest
 import voice
 import voice_edges
 import sw_fixtures
+from modsrc import module_source  # noqa: E402  (calm_compose / voice / qg_checks are split into <name>_parts/)
 
 GATE = voice.NJ_WRITER / "scripts" / "voice_style_gate.py"
 needs_gate = pytest.mark.skipif(not GATE.exists(), reason="nj-writer voice_style_gate.py not on this machine")
@@ -142,7 +143,7 @@ def test_other_engines_are_refused_and_no_network_path(ep, capsys):
         assert e.value.cid == "VOICE-BANNED"
     assert voice.main(["voice", str(paths["script"].parent), "--engine", "gemini"]) == 1
     assert "VOICE-BANNED" in capsys.readouterr().out
-    src = Path(voice.__file__).read_text(encoding="utf-8").lower()
+    src = module_source(voice.__file__).lower()
     assert "urllib" not in src and "openrouter" not in src and "http" not in src.replace("https://", "")
     assert not hasattr(voice, "http_post") and not hasattr(voice, "api_key")
 

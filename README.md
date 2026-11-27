@@ -1,6 +1,8 @@
 <div align="center">
 
-<a href="https://nj-burrito.github.io/story-wrap/"><img src="media/hero.gif" alt="Story-Wrap: an idea moves through script, voice, animation, sound, compose and publish and comes out as a short Arabic reel. / فكرة تمر بالنص والصوت والحركة والمؤثرات والمونتاج والنشر وتصير ريلًا عربيًا قصيرًا." width="540"></a>
+<img src="media/brand/story-wrap-logo-light.svg" alt="Story-Wrap" width="300">
+
+<a href="https://nj-burrito.github.io/story-wrap/"><img src="media/hero.gif" alt="Story-Wrap: an idea moves through script, voice, animation, sound, compose and publish and comes out as a short Arabic reel. / فكرة تمر بالنص والصوت والحركة والمؤثرات والمونتاج والنشر وتصير ريلًا عربيًا قصيرًا." width="720"></a>
 
 # 🎬 Story-Wrap: Claude Code toolkit for Arabic story reels
 
@@ -8,7 +10,7 @@
 
 **Story-Wrap is a free, open-source (MIT) Claude Code toolkit that turns a story idea into a short animated Arabic reel: script, voice, sound, compose and publish.**
 
-By [Nader Alzghoul (NJ-Burrito)](https://nj-burrito.github.io/) · [Website](https://nj-burrito.github.io/story-wrap/) · [بالعربية](https://nj-burrito.github.io/story-wrap/ar/)
+By [Nader Alzghoul (NJ-Burrito)](https://nj-burrito.github.io/) · [Website](https://nj-burrito.github.io/story-wrap/) · [بالعربية](https://nj-burrito.github.io/story-wrap/ar/) · [Release](https://github.com/NJ-Burrito/Story-Wrap/releases/latest)
 
 [![Website](https://img.shields.io/badge/website-nj--burrito.github.io%2Fstory--wrap-D98A3D?labelColor=16171B)](https://nj-burrito.github.io/story-wrap/)
 ![Licence: MIT](https://img.shields.io/badge/licence-MIT-7A1F3D)
@@ -139,11 +141,13 @@ Schedule and board settings: `config/schedule.example.json`, `config/board-confi
 | Path | What it is |
 |---|---|
 | `tools/` | Python and Node scripts: compose, shot engine, voice, captions, gates, heal loop, posting (`ig.py`, `fb.py`, `yt.py`), engagement, board feed; `tools/tests/` |
+| `tools/*_parts/` | The bodies of the three longest tools (`voice.py`, `qg_checks.py`, `calm_compose.py`), split into parts that each entry file loads in order; run and import the entry files as before |
 | `tools/vendor/earshot/` | Patched copy of the MIT `earshot` audio-realism package (see its `PATCHED.md`) |
 | `pipelines/` | How each stage runs (`RUNBOOK.md` first) |
 | `kb/` | Rulebook, guides, quality specs, templates |
 | `bible/craft`, `bible/sound` | Craft and sound reference docs |
 | `board/` | Local monitor page and server (`serve.py`, `index.html`); data is git-ignored |
+| `media/` | The README hero and the social banner (`make_media.py` draws them), and `brand/`: the logo, icons and favicon (`make_brand.py`) |
 | `config/` | Example env and JSON files for every value you must supply |
 | `.claude/skills/`, `.claude/agents/` | Claude Code skills (`story-wrap` plus MIT/Apache/CC0/CC-BY third-party skills) and role agents |
 

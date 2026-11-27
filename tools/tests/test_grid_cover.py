@@ -16,6 +16,7 @@ import yt
 from test_ig import ENV as IG_ENV, Fake as IgFake, make_repo as ig_make_repo
 import test_yt
 from test_yt import env  # noqa: F401  (autouse: the YouTube token file and the stubbed media/seconds)
+from modsrc import module_source  # noqa: E402  (calm_compose / voice / qg_checks are split into <name>_parts/)
 
 
 def tiny_png(path: Path):
@@ -72,7 +73,7 @@ def test_frame0_black_is_refused_and_the_poster_is_accepted(tmp_path):
 
 
 def test_the_gate_has_the_cover_frame0_check_and_assemble_puts_the_poster_first():
-    src = (Path(GP.__file__).parent / "calm_compose.py").read_text(encoding="utf-8")
+    src = module_source(Path(GP.__file__).parent / "calm_compose.py")
     assert 'rec("COVER-FRAME0"' in src and "GP.frame0_check(ep.out, cp_)" in src
     assert "overlay=0:0:eof_action=pass" in src and '"-loop", "1"' in src      # the poster overlays frame 0 of the delivered file
 

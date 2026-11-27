@@ -12,6 +12,7 @@ import animatic
 import calm_compose as cc
 import daily
 import stagegate as SG
+from modsrc import module_source  # noqa: E402  (calm_compose / voice / qg_checks are split into <name>_parts/)
 
 SERIES = "series"
 
@@ -535,7 +536,7 @@ def test_gates_verify_refuses_a_pass_that_skipped_a_check(tmp_path):
 
 
 def test_gate_required_list_matches_the_ids_calm_compose_records():
-    src = Path(cc.__file__).read_text(encoding="utf-8")
+    src = module_source(cc.__file__)
     for cid in SG.GATE_REQUIRED:
         assert f'"{cid}"' in src, cid
 

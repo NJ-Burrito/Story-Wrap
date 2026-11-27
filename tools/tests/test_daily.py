@@ -11,6 +11,7 @@ import pytest
 import calm_compose as cc
 import daily
 import sw_fixtures
+from modsrc import module_source  # noqa: E402  (calm_compose / voice / qg_checks are split into <name>_parts/)
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -494,5 +495,5 @@ def test_a_scene_hold_is_bounded_and_assemble_pads_the_last_frame():
     assert not any(f.startswith("PLAN-HOLD") for f in cc.validate_plan(p, script_ok()))
     p["scenes"][0]["hold"] = 4
     assert any(f.startswith("PLAN-HOLD") for f in cc.validate_plan(p, script_ok()))
-    src = Path(cc.__file__).read_text(encoding="utf-8")
+    src = module_source(cc.__file__)
     assert "tpad=stop_mode=clone:stop_duration={hold" in src and '"hold": float(s.get("hold")' in src
