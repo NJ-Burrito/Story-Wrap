@@ -1,5 +1,7 @@
 # Story-Wrap
 
+**Story-Wrap is a free, open-source (MIT) Claude Code toolkit that automates Arabic interactive animated story reels: script, voice, sound, compose and publish.** It made the animated Arabic series *The Lost Property Office* (مكتب المفقودات). Series page: <https://nj-burrito.github.io/story-wrap/> (Arabic: <https://nj-burrito.github.io/story-wrap/ar/>).
+
 A pipeline and a set of scripts, skills and docs for making short animated story reels
 (Arabic-first, any language works): write, voice, rig and animate 2D characters, compose,
 mix sound, run quality gates, and post through the official Instagram, Facebook Page and
@@ -61,3 +63,7 @@ See `THIRD-PARTY.md`. Each bundled skill keeps its LICENSE and `SOURCE.md`.
 ## Licence
 
 MIT, copyright NJ-Burrito. See `LICENSE`.
+
+## More tools by Nader Alzghoul (NJ-Burrito)
+
+[Portfolio](https://nj-burrito.github.io/) · [QA-Wrap](https://nj-burrito.github.io/QA-Wrap/) (browser bug-report recorder) · [Business-Wrap](https://nj-burrito.github.io/Business-Wrap/) (requirements documents in Arabic and English) · [NJ-Kit](https://nj-burrito.github.io/NJ-Kit/) (working method for Claude Code) · [NJ-Whip](https://nj-burrito.github.io/NJ-Whip/) (on-screen whip for Claude Code) · [Profile-Wrap](https://nj-burrito.github.io/Profile-Wrap/) (LinkedIn posts, your approval first) · [NJ-Flush](https://nj-burrito.github.io/NJ-Flush/) (free Windows RAM cleaner) · [NJ-Sort](https://nj-burrito.github.io/NJ-Sort/) (keeps Windows desktop icons where you put them, even after File Explorer restarts).
