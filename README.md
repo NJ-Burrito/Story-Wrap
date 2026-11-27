@@ -8,7 +8,7 @@
 It is for creators, educators, Arabic storytellers and developers who want to make their own reels. You bring Claude Code, a GPU, your own fonts and characters.
 
 ![Licence: MIT](https://img.shields.io/badge/licence-MIT-7A1F3D)
-![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-4A4C50)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-4A4C50)
 ![Node 18+](https://img.shields.io/badge/node-18%2B-4A4C50)
 
 > ملخص بالعربية: Story-Wrap أداة مفتوحة المصدر تعمل مع Claude Code، تحوّل فكرتك إلى ريل قصصي متحرك: نص، صوت، رسوم، مؤثرات، ثم نشر. مجانية برخصة MIT، وعليك أن تحضر Claude Code وبطاقة رسومية وخطوطك وشخصياتك. المستودع يحتوي الأداة فقط؛ حلقاتك وخطوطك وصوتياتك وبياناتك تبقى عندك. تحتاج سطر الأوامر وClaude Code، فهذه أداة وليست محررًا بالنقر.
@@ -22,7 +22,7 @@ Site: <https://nj-burrito.github.io/story-wrap/> (Arabic: <https://nj-burrito.gi
 
 These five lines run on a clean checkout and print the command list. They do not make a reel.
 
-```
+```bash
 git clone https://github.com/NJ-Burrito/Story-Wrap
 cd Story-Wrap
 mkdir -p ~/.config/story-wrap
@@ -53,7 +53,7 @@ Arabic is the first language: fully voweled voice text, caption shaping and righ
 | You need | Detail |
 |---|---|
 | Claude Code | Your own plan. The toolkit runs inside it. |
-| Python and uv | Python 3.10 or newer (3.11 for some scripts), run through uv. |
+| Python and uv | Python 3.11 or newer for most scripts (a few also run on 3.10), run through uv. |
 | Node and a browser | Node 18 or newer, and a Chromium for rendering. |
 | ffmpeg | For audio and video. |
 | A GPU | NVIDIA, about 4 GB of free video memory, for the local voice engine. It installs into its own environment; the steps are in [`pipelines/VOICE.md`](pipelines/VOICE.md). |
