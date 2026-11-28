@@ -1,0 +1,70 @@
+name: "Bug"
+description: "Something in Story-Wrap does not work as described"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never paste tokens, account IDs, your voice reference clip or your own fonts.
+  - type: input
+    id: version
+    attributes:
+      label: "Version"
+      description: "Release tag or `git rev-parse --short HEAD`"
+      placeholder: "v1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: "OS"
+      options:
+        - "Windows"
+        - "macOS"
+        - "Linux"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area"
+      options:
+        - "Script"
+        - "Voice"
+        - "Animate"
+        - "Sound"
+        - "Compose"
+        - "Publish"
+        - "Setup / config"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps"
+      description: "The smallest set of steps that shows it."
+      placeholder: |
+        1.
+        2.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "What you expected"
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: "What happened"
+      description: "Paste the error text, and attach a screenshot if it helps."
+    validations:
+      required: true
+  - type: checkboxes
+    id: clean
+    attributes:
+      label: "Private data"
+      options:
+        - label: "I removed tokens, account IDs, your voice reference clip or your own fonts."
+          required: true

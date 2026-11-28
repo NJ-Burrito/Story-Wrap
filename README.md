@@ -176,6 +176,13 @@ One example of what you can make. It is not part of the toolkit.
 - 📜 Story-Wrap is MIT, copyright NJ-Burrito. See [`LICENSE`](LICENSE).
 - 🧩 Third-party notices: [`THIRD-PARTY.md`](THIRD-PARTY.md). Each bundled skill keeps its LICENSE and `SOURCE.md`.
 
+<a id="related"></a>
+
+## 🎨 Related / style references
+
+- 🎞️ [Lemo-Opuscar](https://github.com/lemomo-ai/lemo-opuscar) by LemoLab (SecondFirst Pty Ltd): a library of film styles for Claude Code, each a style prompt plus a demo film made in code. Useful as a reference when you pick a look for a reel.
+  - Linked only. Nothing from it is copied into this repo. Its code is MIT; its Markdown (style prompts, SKILL.md) is CC BY-NC 4.0 and its demo films CC BY 4.0. Read its LICENSE before reusing anything.
+
 ---
 
 <a id="more"></a>
